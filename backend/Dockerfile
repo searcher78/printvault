@@ -1,12 +1,12 @@
 FROM python:3.12-slim
 
 # System deps for pyrender (OSMesa headless OpenGL) + trimesh
-# Debian Bookworm package names (python:3.12-slim base)
-RUN apt-get update && apt-get install -y \
+# Works on both Debian Bookworm and Trixie (python:3.12-slim base)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libosmesa6 \
-    libgl1 \
-    libglib2.0-0t64 \
     libgomp1 \
+    && ( apt-get install -y --no-install-recommends libgl1-mesa-glx libglib2.0-0 \
+         || apt-get install -y --no-install-recommends libgl1 libglib2.0-0t64 ) \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
