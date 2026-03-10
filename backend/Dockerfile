@@ -1,11 +1,11 @@
 FROM python:3.12-slim
 
 # System deps for pyrender (OSMesa headless OpenGL) + trimesh
+# Debian Bookworm package names (python:3.12-slim base)
 RUN apt-get update && apt-get install -y \
-    libgles2-mesa-dev \
-    libosmesa6-dev \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
+    libosmesa6 \
+    libgl1 \
+    libglib2.0-0t64 \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
