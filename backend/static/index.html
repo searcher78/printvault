@@ -931,6 +931,30 @@
   }
   .viewer3d-overlay.hidden { display: none; }
 
+  .viewer3d-close-btn {
+    position: fixed;
+    top: 10px;
+    right: 16px;
+    z-index: 1200;
+    width: 36px;
+    height: 36px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .viewer3d-close-btn:hover {
+    background: rgba(255,71,87,0.15);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
   .viewer3d-bar {
     height: 52px;
     background: var(--surface);
@@ -1274,6 +1298,7 @@
 
 <!-- 3D VIEWER -->
 <div class="viewer3d-overlay hidden" id="viewer3d">
+  <button class="viewer3d-close-btn" onclick="close3DViewer()">✕</button>
   <div class="viewer3d-bar">
     <div style="display:flex;align-items:center;min-width:0">
       <span class="viewer3d-title" id="viewer3dTitle">3D-Ansicht</span>
@@ -1284,7 +1309,6 @@
       <span class="viewer3d-hint"><span class="viewer3d-hint-key">Scroll</span> Zoom</span>
       <span class="viewer3d-hint"><span class="viewer3d-hint-key">Rechtsklick</span> Verschieben</span>
       <span class="viewer3d-hint"><span class="viewer3d-hint-key">Esc</span> Schließen</span>
-      <button class="lightbox-close" style="position:static;margin-left:8px" onclick="close3DViewer()">✕</button>
     </div>
   </div>
   <div class="viewer3d-wrap" id="viewer3dWrap">
@@ -2056,8 +2080,9 @@ async function open3DViewer(fileId, format, name) {
     <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)">Lade Modell…</div>`;
   canvas.style.visibility = 'hidden';
   overlay.classList.remove('hidden');
-  // Close modal if open
-  if (typeof closeModal === 'function') closeModal();
+  // Force-close modal and lightbox
+  document.getElementById('modalOverlay')?.classList.remove('open');
+  document.getElementById('lightbox')?.classList.remove('open');
 
   try {
     const W = wrap.clientWidth;
