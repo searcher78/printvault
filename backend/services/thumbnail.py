@@ -10,18 +10,37 @@ logger = logging.getLogger(__name__)
 THUMBNAIL_DIR = os.getenv("THUMBNAIL_DIR", "/app/data/thumbnails")
 THUMBNAIL_SIZE = (512, 512)
 
+# Accent colour from design system
+_MESH_COLOR = "#00d4aa"
+_BG_COLOR   = "#0d0f12"
+
 
 def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
     """Render a 3D file to a PNG thumbnail. Returns path or None on failure."""
     try:
         import trimesh
 
-        mesh = trimesh.load(file_path, force="mesh")
-        if mesh is None or (hasattr(mesh, "is_empty") and mesh.is_empty):
-            logger.warning(f"Empty or invalid mesh: {file_path}")
+        loaded = trimesh.load(file_path)
+
+        # Flatten scene graphs to a single mesh
+        if isinstance(loaded, trimesh.Scene):
+            if loaded.is_empty:
+                logger.warning(f"Empty scene: {file_path}")
+                return None
+            mesh = trimesh.util.concatenate(
+                [g for g in loaded.geometry.values() if isinstance(g, trimesh.Trimesh)]
+            )
+        elif isinstance(loaded, trimesh.Trimesh):
+            mesh = loaded
+        else:
+            logger.warning(f"Unsupported mesh type {type(loaded)}: {file_path}")
             return None
 
-        # Normalize to unit sphere centered at origin
+        if mesh is None or mesh.is_empty:
+            logger.warning(f"Empty mesh: {file_path}")
+            return None
+
+        # Normalise to unit sphere centred at origin
         mesh.apply_translation(-mesh.centroid)
         if mesh.scale > 0:
             mesh.apply_scale(1.0 / mesh.scale)
@@ -29,18 +48,7 @@ def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
         os.makedirs(THUMBNAIL_DIR, exist_ok=True)
         out_path = os.path.join(THUMBNAIL_DIR, f"{file_id}.png")
 
-        img = None
-        for renderer in (_render_pyrender, _render_trimesh_scene):
-            try:
-                img = renderer(mesh)
-                break
-            except Exception as exc:
-                logger.warning(f"Renderer {renderer.__name__} failed for {file_path}: {exc}")
-
-        if img is None:
-            logger.error(f"All renderers failed for {file_path}")
-            return None
-
+        img = _render_matplotlib(mesh)
         img.save(out_path)
         logger.info(f"Thumbnail saved: {out_path}")
         return out_path
@@ -50,54 +58,57 @@ def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
         return None
 
 
-def _camera_pose() -> np.ndarray:
-    """Isometric camera pose (elevated 30°, rotated 45° around Z)."""
-    # Build view matrix: place camera at (1.5, 1.5, 1.5), look at origin
-    eye = np.array([1.5, 1.5, 1.5])
-    target = np.zeros(3)
-    up = np.array([0.0, 0.0, 1.0])
-
-    z = eye - target
-    z /= np.linalg.norm(z)
-    x = np.cross(up, z)
-    x /= np.linalg.norm(x)
-    y = np.cross(z, x)
-
-    pose = np.eye(4)
-    pose[:3, 0] = x
-    pose[:3, 1] = y
-    pose[:3, 2] = z
-    pose[:3, 3] = eye
-    return pose
-
-
-def _render_pyrender(mesh) -> "PIL.Image.Image":
-    import pyrender
+def _render_matplotlib(mesh) -> "PIL.Image.Image":
+    """Software-render mesh with matplotlib Agg backend (no display/OpenGL needed)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     from PIL import Image
 
-    pr_mesh = pyrender.Mesh.from_trimesh(mesh)
-    scene = pyrender.Scene(
-        ambient_light=[0.4, 0.4, 0.4],
-        bg_color=[0.07, 0.07, 0.1, 1.0],
+    verts = mesh.vertices
+    faces = mesh.faces
+
+    # Limit face count for performance – downsample large meshes
+    max_faces = 8000
+    if len(faces) > max_faces:
+        idx = np.random.choice(len(faces), max_faces, replace=False)
+        faces = faces[idx]
+
+    polys = verts[faces]  # shape (N, 3, 3)
+
+    fig = plt.figure(figsize=(5.12, 5.12), dpi=100, facecolor=_BG_COLOR)
+    ax = fig.add_axes([0, 0, 1, 1], projection="3d", facecolor=_BG_COLOR)
+
+    col = Poly3DCollection(
+        polys,
+        alpha=0.92,
+        linewidths=0,
+        edgecolors="none",
     )
-    scene.add(pr_mesh)
+    col.set_facecolor(_MESH_COLOR)
+    ax.add_collection3d(col)
 
-    cam = pyrender.PerspectiveCamera(yfov=np.pi / 3.0, znear=0.01, zfar=100.0)
-    pose = _camera_pose()
-    scene.add(cam, pose=pose)
+    # Fit axes to mesh bounds
+    lim = 1.05
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_zlim(-lim, lim)
+    ax.set_axis_off()
 
-    light = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=4.0)
-    scene.add(light, pose=pose)
+    # Isometric-ish view
+    ax.view_init(elev=28, azim=45)
 
-    renderer = pyrender.OffscreenRenderer(*THUMBNAIL_SIZE)
-    color, _ = renderer.render(scene)
-    renderer.delete()
-    return Image.fromarray(color)
+    # Remove grey panes
+    for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+        pane.fill = False
+        pane.set_edgecolor("none")
 
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=100, bbox_inches="tight",
+                pad_inches=0, facecolor=_BG_COLOR)
+    plt.close(fig)
+    buf.seek(0)
 
-def _render_trimesh_scene(mesh) -> "PIL.Image.Image":
     from PIL import Image
-
-    scene = mesh.scene()
-    png_bytes = scene.save_image(resolution=THUMBNAIL_SIZE, visible=False)
-    return Image.open(io.BytesIO(png_bytes))
+    return Image.open(buf).convert("RGB").resize(THUMBNAIL_SIZE, Image.LANCZOS)
