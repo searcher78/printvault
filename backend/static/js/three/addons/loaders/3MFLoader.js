@@ -1316,6 +1316,8 @@ class ThreeMFLoader extends Loader {
 
 				}
 
+				if ( build === undefined ) continue; // component references missing object
+
 				const object3D = build.clone();
 
 				// apply component transform
@@ -1442,7 +1444,9 @@ class ThreeMFLoader extends Loader {
 			for ( let i = 0; i < buildData.length; i ++ ) {
 
 				const buildItem = buildData[ i ];
-				const object3D = objects[ buildItem[ 'objectId' ] ].clone();
+				const _buildObj = objects[ buildItem[ 'objectId' ] ];
+				if ( _buildObj === undefined ) continue; // build item references missing object
+				const object3D = _buildObj.clone();
 
 				// apply transform
 
