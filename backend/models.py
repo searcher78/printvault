@@ -49,11 +49,19 @@ class PrintFileRead(SQLModel):
     ai_processed: bool
     date_added: datetime
     date_modified: datetime
+    folder: str = ""  # relative path within FILES_DIR
 
     @classmethod
     def from_db(cls, obj: PrintFile) -> "PrintFileRead":
+        import os
         data = obj.model_dump()
         data["tags"] = json.loads(obj.tags) if obj.tags else []
+        files_dir = os.getenv("FILES_DIR", "/files")
+        try:
+            rel = os.path.relpath(os.path.dirname(obj.path), files_dir)
+            data["folder"] = "" if rel == "." else rel
+        except ValueError:
+            data["folder"] = ""
         return cls(**data)
 
 

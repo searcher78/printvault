@@ -852,6 +852,85 @@
   /* Make card thumbnails show zoom cursor when image available */
   .card-thumb.has-thumb { cursor: zoom-in; }
 
+  /* FOLDER NAV */
+  .folder-nav-list { max-height: 190px; overflow-y: auto; }
+  .folder-nav-list::-webkit-scrollbar { width: 3px; }
+
+  /* EDIT PANEL */
+  .edit-section { margin-bottom: 18px; }
+  .edit-section-label {
+    font-size: 10px; font-family: 'Space Mono', monospace;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 8px; display: block;
+  }
+  .cat-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .cat-btn {
+    padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text-dim); cursor: pointer;
+    font-size: 11px; text-align: center; transition: all 0.15s; font-family: 'Inter', sans-serif;
+  }
+  .cat-btn:hover { border-color: var(--border-accent); color: var(--text); }
+  .cat-btn.sel { border-color: var(--accent); color: var(--accent); background: rgba(0,212,170,0.1); font-weight: 600; }
+  .diff-row { display: flex; gap: 6px; }
+  .diff-btn {
+    flex: 1; padding: 8px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface2); cursor: pointer; font-size: 12px; font-weight: 500;
+    text-align: center; transition: all 0.15s; font-family: 'Inter', sans-serif; color: var(--text-dim);
+  }
+  .diff-btn:hover { border-color: var(--border-accent); }
+  .diff-btn.sel-easy   { border-color: #00d4aa; color: #00d4aa; background: rgba(0,212,170,0.1); }
+  .diff-btn.sel-medium { border-color: #ffd32a; color: #ffd32a; background: rgba(255,211,42,0.1); }
+  .diff-btn.sel-hard   { border-color: #ff4757; color: #ff4757; background: rgba(255,71,87,0.1);  }
+  .tag-chips-edit { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+  .tag-chip-e {
+    display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+    border-radius: 20px; background: var(--surface3); border: 1px solid var(--border);
+    font-size: 12px; color: var(--text-dim);
+  }
+  .tag-chip-e .rm { cursor: pointer; color: var(--text-muted); font-size: 15px; line-height: 1; }
+  .tag-chip-e .rm:hover { color: var(--red); }
+  .tag-add-row { display: flex; gap: 8px; margin-top: 8px; }
+  .tag-add-input {
+    flex: 1; background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 12px; border-radius: 7px; font-size: 13px;
+    font-family: 'Inter', sans-serif; outline: none;
+  }
+  .tag-add-input:focus { border-color: var(--border-accent); }
+  .supports-btn {
+    padding: 8px 18px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text-dim); cursor: pointer;
+    font-size: 13px; font-family: 'Inter', sans-serif; transition: all 0.15s;
+  }
+  .supports-btn.on { border-color: #ff4757; color: #ff4757; background: rgba(255,71,87,0.1); }
+  .edit-textarea {
+    width: 100%; background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 13px;
+    font-family: 'Inter', sans-serif; resize: vertical; min-height: 72px; outline: none;
+  }
+  .edit-textarea:focus { border-color: var(--border-accent); }
+
+  /* RELATED FILES */
+  .related-section { padding-top: 20px; border-top: 1px solid var(--border); }
+  .related-label {
+    font-size: 10px; font-family: 'Space Mono', monospace; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: block;
+  }
+  .related-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+  .related-scroll::-webkit-scrollbar { height: 4px; }
+  .related-card { flex-shrink: 0; width: 90px; cursor: pointer; }
+  .related-thumb {
+    width: 90px; height: 68px; background: var(--surface2); border-radius: 7px;
+    overflow: hidden; border: 1px solid var(--border); display: flex;
+    align-items: center; justify-content: center; font-size: 22px; color: var(--surface3);
+    transition: border-color 0.15s;
+  }
+  .related-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .related-card:hover .related-thumb { border-color: var(--border-accent); }
+  .related-name {
+    font-size: 11px; color: var(--text-dim); margin-top: 5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
+  }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -901,6 +980,10 @@
     <div class="nav-item" data-nav="cat:misc" onclick="setNav(this,'cat:misc')">
       <span class="icon">📄</span> Sonstiges
       <span class="count" id="cnt-misc">—</span>
+    </div>
+    <div class="nav-section" style="margin-top:12px">Ordner</div>
+    <div class="folder-nav-list" id="folderNavList">
+      <div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">Lädt…</div>
     </div>
   </nav>
   <div class="sidebar-stats">
@@ -975,6 +1058,53 @@
       <div class="detail-grid" id="modalGrid"></div>
       <div class="modal-notes" id="modalNotes"></div>
       <div class="modal-actions" id="modalActions"></div>
+
+      <!-- EDIT PANEL -->
+      <div id="editPanel" class="hidden" style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+        <div class="edit-section">
+          <span class="edit-section-label">Kategorie</span>
+          <div class="cat-picker">
+            <button class="cat-btn" data-cat="miniatures" onclick="selectCat(this)">⚔ Miniaturen</button>
+            <button class="cat-btn" data-cat="tools"      onclick="selectCat(this)">🔧 Werkzeug</button>
+            <button class="cat-btn" data-cat="deco"       onclick="selectCat(this)">◎ Deko</button>
+            <button class="cat-btn" data-cat="tech"       onclick="selectCat(this)">⊞ Technik</button>
+            <button class="cat-btn" data-cat="cosplay"    onclick="selectCat(this)">⬟ Cosplay</button>
+            <button class="cat-btn" data-cat="misc"       onclick="selectCat(this)">📄 Sonstiges</button>
+          </div>
+        </div>
+        <div class="edit-section">
+          <span class="edit-section-label">Tags</span>
+          <div class="tag-chips-edit" id="tagChipsEdit"></div>
+          <div class="tag-add-row">
+            <input class="tag-add-input" id="tagInput" placeholder="Tag eingeben + Enter"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addTag()}">
+            <button class="btn btn-ghost" onclick="addTag()">+</button>
+          </div>
+        </div>
+        <div class="edit-section">
+          <span class="edit-section-label">Schwierigkeit</span>
+          <div class="diff-row">
+            <button class="diff-btn" data-diff="easy"   onclick="selectDiff(this)">Leicht</button>
+            <button class="diff-btn" data-diff="medium" onclick="selectDiff(this)">Mittel</button>
+            <button class="diff-btn" data-diff="hard"   onclick="selectDiff(this)">Schwer</button>
+          </div>
+        </div>
+        <div class="edit-section" style="display:flex;align-items:center;gap:12px">
+          <span class="edit-section-label" style="margin-bottom:0">Supports nötig</span>
+          <button class="supports-btn" id="supportsBtn" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓ Ja':'✕ Nein'">✕ Nein</button>
+        </div>
+        <div class="edit-section">
+          <span class="edit-section-label">Notizen</span>
+          <textarea class="edit-textarea" id="editNotes" maxlength="200"></textarea>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="saveEdit()">✓ Speichern</button>
+          <button class="btn btn-ghost"   onclick="cancelEdit()">Abbrechen</button>
+        </div>
+      </div>
+
+      <!-- RELATED FILES -->
+      <div id="relatedSection" class="related-section hidden"></div>
     </div>
   </div>
 </div>
@@ -993,13 +1123,16 @@
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let activeNav = 'all';
-let activeFormat = null;   // null = alle
-let currentView = 'grid';
-let openFileId = null;
-let files = [];            // current loaded page
-let searchTimer = null;
-let stats = {};
+let activeNav    = 'all';
+let activeFormat = null;
+let activeFolder = null;   // folder filter (relative path)
+let currentView  = 'grid';
+let openFileId   = null;
+let files        = [];
+let searchTimer  = null;
+let stats        = {};
+let editFile     = null;
+let editTags     = [];
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -1012,7 +1145,7 @@ async function api(method, path, body) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadStats(), loadFiles()]);
+  await Promise.all([loadStats(), loadFiles(), loadFolders()]);
 }
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
@@ -1063,6 +1196,7 @@ function buildParams() {
   else if (activeNav === 'recent') { p.set('sort', 'date'); p.set('order', 'desc'); }
 
   if (activeFormat) p.set('format', activeFormat);
+  if (activeFolder) p.set('folder', activeFolder);
 
   const [sortField, sortOrder] = (document.getElementById('sortSelect').value || 'date_desc').split('_');
   if (activeNav !== 'recent') { p.set('sort', sortField); p.set('order', sortOrder); }
@@ -1075,7 +1209,8 @@ function buildParams() {
 function setNav(el, nav) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
-  activeNav = nav;
+  activeNav    = nav;
+  activeFolder = null;  // clear folder filter when using main nav
 
   const titles = {
     'all':            'Alle <span>Dateien</span>',
@@ -1089,6 +1224,33 @@ function setNav(el, nav) {
     'cat:misc':       'Kategorie: <span>Sonstiges</span>',
   };
   document.getElementById('pageTitle').innerHTML = titles[nav] || 'Dateien';
+  loadFiles();
+}
+
+// ─── FOLDERS ──────────────────────────────────────────────────────────────────
+async function loadFolders() {
+  try {
+    const folders = await api('GET', '/api/folders');
+    const list = document.getElementById('folderNavList');
+    if (!folders.length) {
+      list.innerHTML = '<div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">Keine Unterordner</div>';
+      return;
+    }
+    list.innerHTML = folders.map(f => `
+      <div class="nav-item" data-folder="${esc(f.folder)}" onclick="setFolder(this,'${esc(f.folder)}','${esc(f.display)}')">
+        <span class="icon" style="font-size:13px">📁</span>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(f.display)}</span>
+        <span class="count">${f.count}</span>
+      </div>`).join('');
+  } catch(e) { console.error('folders error', e); }
+}
+
+function setFolder(el, folder, displayName) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeNav    = 'folder';
+  activeFolder = folder;
+  document.getElementById('pageTitle').innerHTML = `Ordner: <span>${esc(displayName)}</span>`;
   loadFiles();
 }
 
@@ -1319,6 +1481,7 @@ async function openModal(id) {
       <button class="btn btn-ghost" onclick="toggleFav(${f.id}, ${f.favorite})">
         ${f.favorite ? '☆ Aus Favoriten' : '★ Favorit'}
       </button>
+      <button class="btn btn-ghost" onclick="enterEditMode(currentOpenFile)">✏ Bearbeiten</button>
       <select class="status-select" onchange="setStatus(${f.id}, this.value)">
         <option value="unprinted"  ${f.print_status==='unprinted'  ? 'selected' : ''}>◯ Nicht gedruckt</option>
         <option value="printing"   ${f.print_status==='printing'   ? 'selected' : ''}>⟳ Wird gedruckt</option>
@@ -1326,10 +1489,127 @@ async function openModal(id) {
       </select>
     `;
 
+    // Store for edit mode
+    window.currentOpenFile = f;
+
+    // Reset edit panel
+    cancelEdit();
+
+    // Related files from same folder
+    const relSection = document.getElementById('relatedSection');
+    if (f.folder) {
+      try {
+        const related = await api('GET', `/api/files?folder=${encodeURIComponent(f.folder)}&limit=20`);
+        const others  = related.filter(r => r.id !== f.id);
+        if (others.length) {
+          relSection.classList.remove('hidden');
+          relSection.innerHTML = `
+            <span class="related-label">📁 ${esc(f.folder.split('/').pop())} — ${others.length + 1} Dateien im Ordner</span>
+            <div class="related-scroll">
+              ${others.map(r => `
+                <div class="related-card" onclick="openModal(${r.id})">
+                  <div class="related-thumb">
+                    ${r.thumbnail_path
+                      ? `<img src="/api/thumbnails/${r.id}" alt="" onerror="this.parentElement.textContent='◈'">`
+                      : '◈'}
+                  </div>
+                  <div class="related-name">${esc(r.name)}</div>
+                </div>`).join('')}
+            </div>`;
+        } else {
+          relSection.classList.add('hidden');
+        }
+      } catch(e) { relSection.classList.add('hidden'); }
+    } else {
+      relSection.classList.add('hidden');
+    }
+
     document.getElementById('modalOverlay').classList.add('open');
   } catch(e) {
     showToast('Fehler beim Laden der Details', '✕');
   }
+}
+
+// ─── EDIT MODE ────────────────────────────────────────────────────────────────
+function enterEditMode(f) {
+  editFile = f;
+  editTags = [...f.tags];
+
+  // Category
+  document.querySelectorAll('.cat-btn').forEach(b => {
+    b.classList.toggle('sel', b.dataset.cat === f.category);
+  });
+
+  // Tags
+  renderEditTags();
+
+  // Difficulty
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.className = 'diff-btn' + (b.dataset.diff === f.difficulty ? ` sel-${f.difficulty}` : '');
+  });
+
+  // Supports
+  const sb = document.getElementById('supportsBtn');
+  sb.classList.toggle('on', f.supports_needed);
+  sb.textContent = f.supports_needed ? '✓ Ja' : '✕ Nein';
+
+  // Notes
+  document.getElementById('editNotes').value = f.notes || '';
+
+  // Show/hide
+  document.getElementById('modalGrid').classList.add('hidden');
+  document.getElementById('modalNotes').classList.add('hidden');
+  document.getElementById('editPanel').classList.remove('hidden');
+}
+
+function cancelEdit() {
+  editFile = null; editTags = [];
+  document.getElementById('editPanel').classList.add('hidden');
+  document.getElementById('modalGrid').classList.remove('hidden');
+  document.getElementById('modalNotes').classList.remove('hidden');
+}
+
+async function saveEdit() {
+  if (!editFile) return;
+  const category      = document.querySelector('.cat-btn.sel')?.dataset.cat || editFile.category;
+  const difficulty    = document.querySelector('.diff-btn[class*="sel-"]')?.dataset.diff || editFile.difficulty;
+  const supports_needed = document.getElementById('supportsBtn').classList.contains('on');
+  const notes         = document.getElementById('editNotes').value.trim();
+  try {
+    await api('PUT', `/api/files/${editFile.id}`, { category, tags: editTags, difficulty, supports_needed, notes });
+    showToast('✓ Gespeichert', '✓');
+    const id = editFile.id;
+    cancelEdit();
+    await openModal(id);
+    loadFiles(); loadStats();
+  } catch(e) { showToast('Fehler beim Speichern', '✕'); }
+}
+
+function selectCat(el) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+function selectDiff(el) {
+  document.querySelectorAll('.diff-btn').forEach(b => b.className = 'diff-btn');
+  el.classList.add(`sel-${el.dataset.diff}`);
+}
+
+function addTag() {
+  const input = document.getElementById('tagInput');
+  const tag   = input.value.trim();
+  if (tag && !editTags.includes(tag)) { editTags.push(tag); renderEditTags(); }
+  input.value = ''; input.focus();
+}
+
+function removeTag(idx) { editTags.splice(idx, 1); renderEditTags(); }
+
+function renderEditTags() {
+  document.getElementById('tagChipsEdit').innerHTML = editTags.length
+    ? editTags.map((t, i) =>
+        `<span class="tag-chip-e">${esc(t)}<span class="rm" onclick="removeTag(${i})">×</span></span>`
+      ).join('')
+    : '<span style="color:var(--text-muted);font-size:12px">Noch keine Tags</span>';
 }
 
 async function setStatus(id, status) {

@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +13,29 @@ from models import PrintFile, PrintFileRead, PrintFileUpdate
 router = APIRouter()
 
 
+@router.get("/folders")
+def get_folders(session: Session = Depends(get_session)):
+    """Return all folders that contain files, with file counts and preview IDs."""
+    files_dir = os.getenv("FILES_DIR", "/files")
+    all_files = session.exec(select(PrintFile)).all()
+    folders: dict = defaultdict(lambda: {"count": 0, "preview_ids": []})
+    for f in all_files:
+        try:
+            rel = os.path.relpath(os.path.dirname(f.path), files_dir)
+            if rel == ".":
+                continue
+        except ValueError:
+            continue
+        folders[rel]["count"] += 1
+        if len(folders[rel]["preview_ids"]) < 4:
+            folders[rel]["preview_ids"].append(f.id)
+    return [
+        {"folder": k, "display": os.path.basename(k) or k,
+         "count": v["count"], "preview_ids": v["preview_ids"]}
+        for k, v in sorted(folders.items())
+    ]
+
+
 @router.get("/files", response_model=list[PrintFileRead])
 def list_files(
     search: Optional[str] = None,
@@ -19,6 +43,7 @@ def list_files(
     format: Optional[str] = None,
     favorite: Optional[bool] = None,
     status: Optional[str] = None,
+    folder: Optional[str] = None,
     sort: str = "date",
     order: str = "desc",
     limit: int = Query(default=50, le=200),
@@ -40,6 +65,10 @@ def list_files(
         query = query.where(PrintFile.favorite == favorite)
     if status:
         query = query.where(PrintFile.print_status == status)
+    if folder:
+        files_dir = os.getenv("FILES_DIR", "/files")
+        folder_abs = os.path.join(files_dir, folder)
+        query = query.where(PrintFile.path.like(folder_abs + "/%"))
 
     sort_col = {
         "date": PrintFile.date_added,
