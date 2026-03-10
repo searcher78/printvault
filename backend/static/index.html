@@ -924,24 +924,66 @@
   .viewer3d-overlay {
     position: fixed;
     inset: 0;
-    background: var(--bg);
+    background: #0a0c0f;
     z-index: 1100;
     display: flex;
     flex-direction: column;
   }
   .viewer3d-overlay.hidden { display: none; }
 
+  .viewer3d-bar {
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px 0 24px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+
+  .viewer3d-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .viewer3d-hints {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .viewer3d-hint-key {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-right: 3px;
+  }
+
   .viewer3d-close-btn {
-    position: fixed;
-    top: 10px;
-    right: 16px;
-    z-index: 1200;
-    width: 36px;
-    height: 36px;
+    flex-shrink: 0;
+    margin-left: 16px;
+    width: 32px;
+    height: 32px;
     background: var(--surface2);
     border: 1px solid var(--border);
     color: var(--text-dim);
-    font-size: 16px;
+    font-size: 15px;
     cursor: pointer;
     border-radius: 6px;
     display: flex;
@@ -955,57 +997,16 @@
     color: var(--red);
   }
 
-  .viewer3d-bar {
-    height: 52px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    flex-shrink: 0;
-  }
-
-  .viewer3d-title {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--accent);
-    letter-spacing: 1px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 50%;
-  }
-
-  .viewer3d-hints {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    display: flex;
-    gap: 16px;
-    align-items: center;
-  }
-
-  .viewer3d-hint {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-
-  .viewer3d-hint-key {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 10px;
-    color: var(--text-dim);
-  }
-
   .viewer3d-wrap {
     flex: 1;
     position: relative;
     overflow: hidden;
+  }
+
+  #viewer3dCanvas {
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
   }
 
   .viewer3d-loading {
@@ -1015,7 +1016,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: var(--bg);
+    background: #0a0c0f;
     z-index: 2;
   }
 
@@ -1036,23 +1037,6 @@
     font-size: 12px;
     text-align: center;
     padding: 20px;
-  }
-
-  #viewer3dCanvas {
-    display: block;
-    position: absolute;
-    top: 0; left: 0;
-  }
-
-  .viewer3d-fmt {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: var(--surface2);
-    color: var(--text-muted);
-    margin-left: 10px;
-    letter-spacing: 1px;
   }
 
   /* Make card thumbnails show zoom cursor when image available */
@@ -1298,23 +1282,20 @@
 
 <!-- 3D VIEWER -->
 <div class="viewer3d-overlay hidden" id="viewer3d">
-  <button class="viewer3d-close-btn" onclick="close3DViewer()">✕</button>
   <div class="viewer3d-bar">
-    <div style="display:flex;align-items:center;min-width:0">
-      <span class="viewer3d-title" id="viewer3dTitle">3D-Ansicht</span>
-      <span class="viewer3d-fmt" id="viewer3dFmt"></span>
-    </div>
+    <span class="viewer3d-title" id="viewer3dTitle"></span>
     <div class="viewer3d-hints">
-      <span class="viewer3d-hint"><span class="viewer3d-hint-key">Drag</span> Drehen</span>
-      <span class="viewer3d-hint"><span class="viewer3d-hint-key">Scroll</span> Zoom</span>
-      <span class="viewer3d-hint"><span class="viewer3d-hint-key">Rechtsklick</span> Verschieben</span>
-      <span class="viewer3d-hint"><span class="viewer3d-hint-key">Esc</span> Schließen</span>
+      <span><span class="viewer3d-hint-key">Drag</span>Drehen</span>
+      <span><span class="viewer3d-hint-key">Scroll</span>Zoom</span>
+      <span><span class="viewer3d-hint-key">Rechtsklick</span>Verschieben</span>
+      <span><span class="viewer3d-hint-key">Esc</span>Schließen</span>
+      <button class="viewer3d-close-btn" onclick="close3DViewer()">✕</button>
     </div>
   </div>
   <div class="viewer3d-wrap" id="viewer3dWrap">
     <div class="viewer3d-loading" id="viewer3dLoading">
       <div class="viewer3d-spinner"></div>
-      <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)" id="viewer3dLoadMsg">Lade Modell…</div>
+      <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)">Lade Modell…</div>
     </div>
     <canvas id="viewer3dCanvas"></canvas>
   </div>
@@ -2054,8 +2035,8 @@ import { STLLoader }     from 'three/addons/loaders/STLLoader.js';
 import { OBJLoader }     from 'three/addons/loaders/OBJLoader.js';
 import { ThreeMFLoader } from 'three/addons/loaders/3MFLoader.js';
 
-let renderer   = null;
-let animId     = null;
+let renderer       = null;
+let animId         = null;
 let resizeObserver = null;
 
 function cleanup() {
@@ -2067,19 +2048,20 @@ function cleanup() {
 async function open3DViewer(fileId, format, name) {
   cleanup();
 
-  const overlay  = document.getElementById('viewer3d');
-  const loading  = document.getElementById('viewer3dLoading');
-  const loadMsg  = document.getElementById('viewer3dLoadMsg');
-  const canvas   = document.getElementById('viewer3dCanvas');
-  const wrap     = document.getElementById('viewer3dWrap');
+  const overlay = document.getElementById('viewer3d');
+  const loading = document.getElementById('viewer3dLoading');
+  const canvas  = document.getElementById('viewer3dCanvas');
+  const wrap    = document.getElementById('viewer3dWrap');
 
   document.getElementById('viewer3dTitle').textContent = name;
-  document.getElementById('viewer3dFmt').textContent   = format;
-  loading.style.display  = 'flex';
   loading.innerHTML = `<div class="viewer3d-spinner"></div>
     <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)">Lade Modell…</div>`;
+  loading.style.display   = 'flex';
   canvas.style.visibility = 'hidden';
   overlay.classList.remove('hidden');
+
+  // Wait one frame so the overlay has laid out and has real dimensions
+  await new Promise(r => requestAnimationFrame(r));
 
   try {
     const W = wrap.clientWidth;
@@ -2093,29 +2075,21 @@ async function open3DViewer(fileId, format, name) {
     const scene  = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, W / H, 0.001, 100000);
 
-    // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(1, 2, 3);
-    scene.add(key);
+    const key  = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(1, 2, 3); scene.add(key);
     const fill = new THREE.DirectionalLight(0x00d4aa, 0.25);
-    fill.position.set(-2, 0.5, -1);
-    scene.add(fill);
+    fill.position.set(-2, 0.5, -1); scene.add(fill);
     const back = new THREE.DirectionalLight(0xffffff, 0.15);
-    back.position.set(0, -1, -2);
-    scene.add(back);
+    back.position.set(0, -1, -2); scene.add(back);
 
-    // Controls
     const controls = new OrbitControls(camera, canvas);
-    controls.enableDamping   = true;
-    controls.dampingFactor   = 0.06;
-    controls.mouseButtons    = {
-      LEFT: THREE.MOUSE.ROTATE,
-      MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN,
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.mouseButtons  = {
+      LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN,
     };
 
-    // Load model
     const url = `/api/files/${fileId}/download`;
     const mat = new THREE.MeshStandardMaterial({ color: 0x00d4aa, roughness: 0.45, metalness: 0.1 });
     let root;
@@ -2124,35 +2098,25 @@ async function open3DViewer(fileId, format, name) {
       const geo = await new Promise((res, rej) => new STLLoader().load(url, res, null, rej));
       geo.computeVertexNormals();
       root = new THREE.Mesh(geo, mat);
-
     } else if (format === 'OBJ') {
       root = await new Promise((res, rej) => new OBJLoader().load(url, res, null, rej));
       root.traverse(c => { if (c.isMesh) c.material = mat.clone(); });
-
     } else if (format === '3MF') {
       root = await new Promise((res, rej) => new ThreeMFLoader().load(url, res, null, rej));
-      // Override all materials and apply uniform color (ignore embedded textures/colors)
       root.traverse(c => {
-        if (c.isMesh) {
-          c.material = mat.clone();
-          if (c.geometry) c.geometry.computeVertexNormals();
-        }
+        if (c.isMesh) { c.material = mat.clone(); c.geometry?.computeVertexNormals(); }
       });
     }
 
-    // Verify something was loaded
     const meshCount = (() => { let n = 0; root.traverse(c => { if (c.isMesh) n++; }); return n; })();
-    if (meshCount === 0) throw new Error('Keine Geometrie gefunden (0 Meshes)');
+    if (meshCount === 0) throw new Error('Keine Geometrie gefunden');
 
     scene.add(root);
 
-    // Center + fit camera
     const box    = new THREE.Box3().setFromObject(root);
     const center = box.getCenter(new THREE.Vector3());
     const size   = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-
-    // Move root so bounding box center is at origin
     root.position.sub(center);
 
     const dist = maxDim * 1.8;
@@ -2163,21 +2127,17 @@ async function open3DViewer(fileId, format, name) {
     controls.target.set(0, 0, 0);
     controls.update();
 
-    // Responsive resize
     resizeObserver = new ResizeObserver(() => {
-      const W = wrap.clientWidth;
-      const H = wrap.clientHeight;
+      const W = wrap.clientWidth, H = wrap.clientHeight;
       camera.aspect = W / H;
       camera.updateProjectionMatrix();
       renderer.setSize(W, H);
     });
     resizeObserver.observe(wrap);
 
-    // Show canvas, hide loading
     loading.style.display   = 'none';
     canvas.style.visibility = 'visible';
 
-    // Render loop
     (function animate() {
       animId = requestAnimationFrame(animate);
       controls.update();
@@ -2198,9 +2158,8 @@ function close3DViewer() {
   document.getElementById('viewer3d').classList.add('hidden');
 }
 
-// Expose to global scope (called from inline onclick)
-window.open3DViewer   = open3DViewer;
-window.close3DViewer  = close3DViewer;
+window.open3DViewer  = open3DViewer;
+window.close3DViewer = close3DViewer;
 </script>
 </body>
 </html>
