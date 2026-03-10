@@ -925,7 +925,7 @@
     position: fixed;
     inset: 0;
     background: var(--bg);
-    z-index: 500;
+    z-index: 1100;
     display: flex;
     flex-direction: column;
   }
@@ -2056,6 +2056,8 @@ async function open3DViewer(fileId, format, name) {
     <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)">Lade Modell…</div>`;
   canvas.style.visibility = 'hidden';
   overlay.classList.remove('hidden');
+  // Close modal if open
+  if (typeof closeModal === 'function') closeModal();
 
   try {
     const W = wrap.clientWidth;
