@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 THUMBNAIL_DIR = os.getenv("THUMBNAIL_DIR", "/app/data/thumbnails")
 THUMBNAIL_SIZE = (512, 512)
 
-# Accent colour from design system
-_MESH_COLOR = "#00d4aa"
+# Design-system colours
 _BG_COLOR   = "#0d0f12"
+_BASE_COLOR = np.array([0.0, 0.831, 0.667])   # #00d4aa
 
 
 def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
@@ -27,9 +27,11 @@ def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
             if loaded.is_empty:
                 logger.warning(f"Empty scene: {file_path}")
                 return None
-            mesh = trimesh.util.concatenate(
-                [g for g in loaded.geometry.values() if isinstance(g, trimesh.Trimesh)]
-            )
+            meshes = [g for g in loaded.geometry.values()
+                      if isinstance(g, trimesh.Trimesh) and not g.is_empty]
+            if not meshes:
+                return None
+            mesh = trimesh.util.concatenate(meshes)
         elif isinstance(loaded, trimesh.Trimesh):
             mesh = loaded
         else:
@@ -48,7 +50,7 @@ def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
         os.makedirs(THUMBNAIL_DIR, exist_ok=True)
         out_path = os.path.join(THUMBNAIL_DIR, f"{file_id}.png")
 
-        img = _render_matplotlib(mesh)
+        img = _render(mesh)
         img.save(out_path)
         logger.info(f"Thumbnail saved: {out_path}")
         return out_path
@@ -58,48 +60,66 @@ def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
         return None
 
 
-def _render_matplotlib(mesh) -> "PIL.Image.Image":
-    """Software-render mesh with matplotlib Agg backend (no display/OpenGL needed)."""
+def _render(mesh) -> "PIL.Image.Image":
+    """
+    Matplotlib Agg renderer with per-face Lambert + ambient shading.
+    No OpenGL or display required.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     from PIL import Image
 
-    verts = mesh.vertices
-    faces = mesh.faces
+    verts  = mesh.vertices
+    faces  = mesh.faces
+    normals = mesh.face_normals   # (F, 3) – trimesh keeps these normalised
 
-    # Limit face count for performance – downsample large meshes
-    max_faces = 8000
+    # Downsample very large meshes for performance
+    max_faces = 10_000
     if len(faces) > max_faces:
-        idx = np.random.choice(len(faces), max_faces, replace=False)
-        faces = faces[idx]
+        idx     = np.random.choice(len(faces), max_faces, replace=False)
+        faces   = faces[idx]
+        normals = normals[idx]
 
-    polys = verts[faces]  # shape (N, 3, 3)
+    polys = verts[faces]   # (N, 3, 3)
 
+    # ── Lighting ─────────────────────────────────────────────────────────────
+    # Two lights: key (upper-right-front) + fill (left)
+    key_dir  = np.array([ 0.6,  0.4,  1.0]); key_dir  /= np.linalg.norm(key_dir)
+    fill_dir = np.array([-1.0,  0.2,  0.3]); fill_dir /= np.linalg.norm(fill_dir)
+
+    key_intensity  = 0.65
+    fill_intensity = 0.20
+    ambient        = 0.20
+
+    diffuse_key  = np.clip(normals @ key_dir,  0, 1)
+    diffuse_fill = np.clip(normals @ fill_dir, 0, 1)
+
+    shading = ambient + key_intensity * diffuse_key + fill_intensity * diffuse_fill
+    shading = np.clip(shading, 0, 1)[:, np.newaxis]   # (N, 1)
+
+    # Per-face RGBA colours
+    face_colors = np.hstack([
+        _BASE_COLOR * shading,                  # RGB shaded
+        np.full((len(faces), 1), 0.95),         # alpha
+    ])
+
+    # ── Render ────────────────────────────────────────────────────────────────
     fig = plt.figure(figsize=(5.12, 5.12), dpi=100, facecolor=_BG_COLOR)
-    ax = fig.add_axes([0, 0, 1, 1], projection="3d", facecolor=_BG_COLOR)
+    ax  = fig.add_axes([0, 0, 1, 1], projection="3d", facecolor=_BG_COLOR)
 
-    col = Poly3DCollection(
-        polys,
-        alpha=0.92,
-        linewidths=0,
-        edgecolors="none",
-    )
-    col.set_facecolor(_MESH_COLOR)
+    col = Poly3DCollection(polys, linewidths=0, edgecolors="none", shade=False)
+    col.set_facecolors(face_colors)
     ax.add_collection3d(col)
 
-    # Fit axes to mesh bounds
     lim = 1.05
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
     ax.set_zlim(-lim, lim)
     ax.set_axis_off()
-
-    # Isometric-ish view
     ax.view_init(elev=28, azim=45)
 
-    # Remove grey panes
     for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
         pane.fill = False
         pane.set_edgecolor("none")

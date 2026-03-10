@@ -86,6 +86,27 @@ def _process_file(file_id: int) -> None:
                 session.commit()
 
 
+def reprocess_thumbnails() -> None:
+    """Re-render thumbnails for all files (force, regardless of existing thumbnail)."""
+    from services.thumbnail import generate_thumbnail
+
+    with Session(engine) as session:
+        all_files = session.exec(select(PrintFile)).all()
+        ids = [f.id for f in all_files]
+
+    logger.info(f"Reprocessing thumbnails for {len(ids)} files")
+    for file_id in ids:
+        with Session(engine) as session:
+            file = session.get(PrintFile, file_id)
+            if not file:
+                continue
+            thumbnail_path = generate_thumbnail(file.path, file_id)
+            if thumbnail_path:
+                file.thumbnail_path = thumbnail_path
+                session.add(file)
+                session.commit()
+
+
 def _retry_ai_unprocessed() -> None:
     """Retry AI tagging for files that have a thumbnail but aren't tagged yet."""
     with Session(engine) as session:
