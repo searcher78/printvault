@@ -2080,9 +2080,6 @@ async function open3DViewer(fileId, format, name) {
     <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)">Lade Modell…</div>`;
   canvas.style.visibility = 'hidden';
   overlay.classList.remove('hidden');
-  // Force-close modal and lightbox
-  document.getElementById('modalOverlay')?.classList.remove('open');
-  document.getElementById('lightbox')?.classList.remove('open');
 
   try {
     const W = wrap.clientWidth;
