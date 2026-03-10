@@ -1398,20 +1398,31 @@ class ThreeMFLoader extends Loader {
 
 			}
 
-			// start build
+			// start build — two passes so cross-file component references work:
+			// Pass 1: build all leaf objects (have a mesh) from every model file first.
+			// Pass 2: build composite objects (components only) — their referenced
+			//          mesh objects are already in `objects` from pass 1.
 
-			for ( let i = 0; i < modelsKeys.length; i ++ ) {
+			for ( let pass = 1; pass <= 2; pass ++ ) {
 
-				const modelsKey = modelsKeys[ i ];
-				const modelData = modelsData[ modelsKey ];
+				for ( let i = 0; i < modelsKeys.length; i ++ ) {
 
-				const objectIds = Object.keys( modelData[ 'resources' ][ 'object' ] );
+					const modelsKey = modelsKeys[ i ];
+					const modelData = modelsData[ modelsKey ];
 
-				for ( let j = 0; j < objectIds.length; j ++ ) {
+					const objectIds = Object.keys( modelData[ 'resources' ][ 'object' ] );
 
-					const objectId = objectIds[ j ];
+					for ( let j = 0; j < objectIds.length; j ++ ) {
 
-					buildObject( objectId, objects, modelData, textureData );
+						const objectId = objectIds[ j ];
+						const hasMesh = !! modelData[ 'resources' ][ 'object' ][ objectId ][ 'mesh' ];
+
+						if ( pass === 1 && hasMesh ) buildObject( objectId, objects, modelData, textureData );
+						if ( pass === 2 && ! hasMesh && objects[ objectId ] === undefined ) {
+							buildObject( objectId, objects, modelData, textureData );
+						}
+
+					}
 
 				}
 
