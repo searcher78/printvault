@@ -1,0 +1,16 @@
+services:
+  printvault:
+    build: ./backend
+    ports:
+      - "8765:8000"
+    volumes:
+      - /mnt/user/3dprint:/files:ro
+      - ./data/db:/app/data/db
+      - ./data/thumbnails:/app/data/thumbnails
+    environment:
+      - FILES_DIR=/files
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - THUMBNAIL_DIR=/app/data/thumbnails
+      - DB_PATH=/app/data/db/printvault.db
+    restart: unless-stopped

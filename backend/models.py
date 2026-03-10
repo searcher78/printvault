@@ -1,0 +1,67 @@
+import json
+from datetime import datetime
+from typing import Optional
+
+from sqlmodel import Field, SQLModel
+
+
+class PrintFile(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    path: str = Field(unique=True, index=True)
+    format: str  # STL | 3MF | OBJ | LYS
+    size_bytes: int
+    category: str = "misc"
+    tags: str = "[]"  # JSON-array stored as string
+    supports_needed: bool = False
+    difficulty: str = "medium"  # easy | medium | hard
+    notes: str = ""
+    favorite: bool = False
+    print_status: str = "unprinted"  # unprinted | printing | printed
+    thumbnail_path: Optional[str] = None
+    ai_processed: bool = False
+    date_added: datetime = Field(default_factory=datetime.utcnow)
+    date_modified: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Settings(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    key: str = Field(unique=True, index=True)
+    value: str
+
+
+# ── Response / Update schemas ──────────────────────────────────────────────────
+
+class PrintFileRead(SQLModel):
+    id: int
+    name: str
+    path: str
+    format: str
+    size_bytes: int
+    category: str
+    tags: list[str]
+    supports_needed: bool
+    difficulty: str
+    notes: str
+    favorite: bool
+    print_status: str
+    thumbnail_path: Optional[str]
+    ai_processed: bool
+    date_added: datetime
+    date_modified: datetime
+
+    @classmethod
+    def from_db(cls, obj: PrintFile) -> "PrintFileRead":
+        data = obj.model_dump()
+        data["tags"] = json.loads(obj.tags) if obj.tags else []
+        return cls(**data)
+
+
+class PrintFileUpdate(SQLModel):
+    category: Optional[str] = None
+    tags: Optional[list[str]] = None
+    supports_needed: Optional[bool] = None
+    difficulty: Optional[str] = None
+    notes: Optional[str] = None
+    favorite: Optional[bool] = None
+    print_status: Optional[str] = None

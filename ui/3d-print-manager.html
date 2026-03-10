@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PrintVault — 3D File Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111418;
+    --surface2: #1a1f26;
+    --surface3: #222831;
+    --accent: #00d4aa;
+    --accent2: #0088ff;
+    --accent-glow: rgba(0, 212, 170, 0.15);
+    --text: #e8eaed;
+    --text-muted: #6b7280;
+    --text-dim: #9ca3af;
+    --border: rgba(255,255,255,0.06);
+    --border-accent: rgba(0, 212, 170, 0.3);
+    --red: #ff4757;
+    --yellow: #ffd32a;
+    --purple: #a855f7;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+  }
+
+  .logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .logo-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .nav {
+    padding: 16px 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .nav-section {
+    padding: 8px 20px 4px;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    user-select: none;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--accent-glow); }
+  .nav-item.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--accent-glow);
+    font-weight: 500;
+  }
+
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-item .count {
+    margin-left: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    background: var(--surface3);
+    padding: 2px 6px;
+    border-radius: 10px;
+    color: var(--text-muted);
+  }
+
+  .nav-item.active .count {
+    background: rgba(0,212,170,0.2);
+    color: var(--accent);
+  }
+
+  .sidebar-stats {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .stat-val { color: var(--accent); }
+
+  /* MAIN */
+  .main {
+    margin-left: 240px;
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    position: sticky;
+    top: 0;
+    background: rgba(10,12,15,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 50;
+  }
+
+  .search-wrap {
+    flex: 1;
+    position: relative;
+    max-width: 480px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px 10px 40px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-input:focus {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .search-input::placeholder { color: var(--text-muted); }
+
+  .topbar-actions { display: flex; gap: 8px; margin-left: auto; }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--surface3); color: var(--text); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+  .btn-primary:hover { background: #00f0c0; box-shadow: 0 0 20px rgba(0,212,170,0.4); }
+
+  /* CONTENT */
+  .content { padding: 28px; }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .page-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text);
+  }
+
+  .page-title span { color: var(--accent); }
+
+  .view-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .sort-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 7px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .view-toggle {
+    display: flex;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .view-btn {
+    padding: 7px 12px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 14px;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+  }
+
+  .view-btn.active { background: var(--surface3); color: var(--accent); }
+
+  /* FILTER CHIPS */
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    align-items: center;
+  }
+
+  .filter-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    margin-right: 4px;
+  }
+
+  .chip {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .chip:hover { border-color: var(--border-accent); color: var(--text); }
+  .chip.active { background: rgba(0,212,170,0.15); border-color: var(--accent); color: var(--accent); }
+
+  .chip.cat-miniatures { --cat-color: #a855f7; }
+  .chip.cat-tools { --cat-color: #0088ff; }
+  .chip.cat-deco { --cat-color: #ffd32a; }
+  .chip.cat-tech { --cat-color: #ff6b35; }
+  .chip.cat-cosplay { --cat-color: #ff4757; }
+
+  .chip.active.cat-miniatures { background: rgba(168,85,247,0.15); border-color: #a855f7; color: #a855f7; }
+  .chip.active.cat-tools { background: rgba(0,136,255,0.15); border-color: #0088ff; color: #0088ff; }
+  .chip.active.cat-deco { background: rgba(255,211,42,0.15); border-color: #ffd32a; color: #ffd32a; }
+  .chip.active.cat-tech { background: rgba(255,107,53,0.15); border-color: #ff6b35; color: #ff6b35; }
+  .chip.active.cat-cosplay { background: rgba(255,71,87,0.15); border-color: #ff4757; color: #ff4757; }
+
+  /* GRID */
+  .files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .card:hover {
+    border-color: var(--border-accent);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,212,170,0.1);
+  }
+
+  .card-thumb {
+    aspect-ratio: 4/3;
+    background: var(--surface2);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-thumb canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  .thumb-placeholder {
+    width: 80px;
+    height: 80px;
+    color: var(--surface3);
+  }
+
+  .card-format {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .fmt-stl { color: #00d4aa; border: 1px solid rgba(0,212,170,0.3); }
+  .fmt-3mf { color: #0088ff; border: 1px solid rgba(0,136,255,0.3); }
+  .fmt-obj { color: #ffd32a; border: 1px solid rgba(255,211,42,0.3); }
+  .fmt-lys { color: #a855f7; border: 1px solid rgba(168,85,247,0.3); }
+
+  .card-fav {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border);
+  }
+
+  .card-fav:hover { background: rgba(255,211,42,0.2); border-color: var(--yellow); }
+  .card-fav.active { color: var(--yellow); background: rgba(255,211,42,0.15); border-color: var(--yellow); }
+
+  .card-body { padding: 14px 16px; }
+
+  .card-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+  }
+
+  .card-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .card-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .tag-miniatures { background: rgba(168,85,247,0.15); color: #a855f7; }
+  .tag-tools { background: rgba(0,136,255,0.15); color: #0088ff; }
+  .tag-deco { background: rgba(255,211,42,0.15); color: #ffd32a; }
+  .tag-tech { background: rgba(255,107,53,0.15); color: #ff6b35; }
+  .tag-cosplay { background: rgba(255,71,87,0.15); color: #ff4757; }
+  .tag-misc { background: rgba(107,114,128,0.15); color: #9ca3af; }
+
+  .card-size {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  .card-footer {
+    display: flex;
+    gap: 8px;
+  }
+
+  .card-btn {
+    flex: 1;
+    padding: 7px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .card-btn:hover { background: var(--surface3); color: var(--text); }
+
+  .card-btn.dl {
+    background: rgba(0,212,170,0.1);
+    border-color: rgba(0,212,170,0.3);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .card-btn.dl:hover {
+    background: rgba(0,212,170,0.2);
+    box-shadow: 0 0 12px rgba(0,212,170,0.2);
+  }
+
+  /* LIST VIEW */
+  .files-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .list-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .list-item:hover {
+    border-color: var(--border-accent);
+    background: var(--surface2);
+  }
+
+  .list-thumb {
+    width: 56px;
+    height: 56px;
+    background: var(--surface2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 24px;
+    border: 1px solid var(--border);
+  }
+
+  .list-info { flex: 1; min-width: 0; }
+
+  .list-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .list-meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .list-meta .card-tag { font-size: 11px; }
+
+  .list-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 720px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    animation: modalIn 0.2s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-header {
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .modal-thumb {
+    width: 100px;
+    height: 100px;
+    background: var(--surface2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .modal-title-area { flex: 1; }
+
+  .modal-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .modal-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+
+  .modal-path {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    padding: 5px 10px;
+    border-radius: 5px;
+    word-break: break-all;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: all 0.15s;
+  }
+
+  .modal-close:hover { color: var(--text); background: var(--surface3); }
+
+  .modal-body { padding: 24px 28px; }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .detail-item {
+    background: var(--surface2);
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .detail-label {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+  }
+
+  .detail-val {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .detail-val.accent { color: var(--accent); }
+
+  .modal-notes {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 24px;
+  }
+
+  .upload-zone:hover, .upload-zone.drag {
+    border-color: var(--border-accent);
+    background: var(--accent-glow);
+  }
+
+  .upload-icon { font-size: 36px; margin-bottom: 12px; }
+  .upload-text { color: var(--text-dim); font-size: 14px; }
+  .upload-text strong { color: var(--accent); }
+
+  /* RESULT COUNT */
+  .result-info {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .result-info span { color: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    color: var(--text-muted);
+  }
+
+  .empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.3; }
+  .empty-title { font-size: 18px; color: var(--text-dim); margin-bottom: 8px; }
+  .empty-sub { font-size: 14px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-accent); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background: var(--surface2);
+    border: 1px solid var(--border-accent);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 14px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast-icon { font-size: 18px; }
+
+  /* SEARCH HIGHLIGHT */
+  mark {
+    background: rgba(0,212,170,0.25);
+    color: var(--accent);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-text">⬡ PrintVault</div>
+    <div class="logo-sub">3D File Manager</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Bibliothek</div>
+    <div class="nav-item active" data-filter="all" onclick="setNav(this, 'all')">
+      <span class="icon">◈</span> Alle Dateien
+      <span class="count" id="cnt-all">0</span>
+    </div>
+    <div class="nav-item" data-filter="fav" onclick="setNav(this, 'fav')">
+      <span class="icon">★</span> Favoriten
+      <span class="count" id="cnt-fav">0</span>
+    </div>
+    <div class="nav-item" data-filter="recent" onclick="setNav(this, 'recent')">
+      <span class="icon">◷</span> Zuletzt hinzugefügt
+      <span class="count" id="cnt-rec">0</span>
+    </div>
+
+    <div class="nav-section" style="margin-top:12px">Kategorien</div>
+    <div class="nav-item" data-filter="miniatures" onclick="setNav(this, 'cat:miniatures')">
+      <span class="icon">⚔</span> Miniaturen
+      <span class="count" id="cnt-mini">0</span>
+    </div>
+    <div class="nav-item" data-filter="tools" onclick="setNav(this, 'cat:tools')">
+      <span class="icon">🔧</span> Werkzeug
+      <span class="count" id="cnt-tools">0</span>
+    </div>
+    <div class="nav-item" data-filter="deco" onclick="setNav(this, 'cat:deco')">
+      <span class="icon">◎</span> Deko
+      <span class="count" id="cnt-deco">0</span>
+    </div>
+    <div class="nav-item" data-filter="tech" onclick="setNav(this, 'cat:tech')">
+      <span class="icon">⊞</span> Technik
+      <span class="count" id="cnt-tech">0</span>
+    </div>
+    <div class="nav-item" data-filter="cosplay" onclick="setNav(this, 'cat:cosplay')">
+      <span class="icon">⬟</span> Cosplay
+      <span class="count" id="cnt-cos">0</span>
+    </div>
+  </nav>
+  <div class="sidebar-stats">
+    <div class="stat-row"><span>Dateien gesamt</span><span class="stat-val" id="stat-total">0</span></div>
+    <div class="stat-row"><span>Speicher</span><span class="stat-val" id="stat-size">—</span></div>
+    <div class="stat-row"><span>Kategorien</span><span class="stat-val">5</span></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" class="search-input" id="searchInput" placeholder="Suchen… z.B. »space marine«, »stl«, »fantasy«" oninput="applyFilters()">
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('fileInput').click()">⊕ Datei hinzufügen</button>
+      <button class="btn btn-primary">⬆ Scannen</button>
+    </div>
+    <input type="file" id="fileInput" style="display:none" multiple accept=".stl,.3mf,.obj,.lys" onchange="importFiles(this)">
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="page-header">
+      <div class="page-title" id="pageTitle">Alle <span>Dateien</span></div>
+      <div class="view-controls">
+        <select class="sort-select" onchange="applyFilters()">
+          <option value="name">Name A–Z</option>
+          <option value="date">Zuletzt hinzugefügt</option>
+          <option value="size">Dateigröße</option>
+          <option value="format">Format</option>
+        </select>
+        <div class="view-toggle">
+          <button class="view-btn active" id="gridBtn" onclick="setView('grid')">⊞</button>
+          <button class="view-btn" id="listBtn" onclick="setView('list')">≡</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPLOAD ZONE -->
+    <div class="upload-zone" id="dropZone">
+      <div class="upload-icon">⬆</div>
+      <div class="upload-text">
+        <strong>Dateien hier hineinziehen</strong> oder klicken zum Auswählen<br>
+        Unterstützt: STL, 3MF, OBJ, LYS
+      </div>
+    </div>
+
+    <!-- FILTER CHIPS -->
+    <div class="filter-row">
+      <span class="filter-label">Format:</span>
+      <div class="chip" data-fmt="STL" onclick="toggleChip(this)" style="color:#00d4aa">STL</div>
+      <div class="chip" data-fmt="3MF" onclick="toggleChip(this)" style="color:#0088ff">3MF</div>
+      <div class="chip" data-fmt="OBJ" onclick="toggleChip(this)" style="color:#ffd32a">OBJ</div>
+      <div class="chip" data-fmt="LYS" onclick="toggleChip(this)" style="color:#a855f7">LYS</div>
+    </div>
+
+    <!-- RESULT INFO -->
+    <div class="result-info" id="resultInfo"></div>
+
+    <!-- FILES -->
+    <div class="files-grid" id="filesGrid"></div>
+    <div class="files-list hidden" id="filesList"></div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <div class="modal-header">
+      <div class="modal-thumb" id="modalThumb">🖨</div>
+      <div class="modal-title-area">
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-tags" id="modalTags"></div>
+        <div class="modal-path" id="modalPath"></div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="modalGrid"></div>
+      <div class="modal-notes" id="modalNotes"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">✓</span>
+  <span id="toastMsg">Aktion erfolgreich</span>
+</div>
+
+<script>
+// ─── DEMO DATA ──────────────────────────────────────────────────────────────
+const DEMO_FILES = [
+  { id:1, name:"Space Marine Primaris Intercessor", format:"STL", category:"miniatures", tags:["Warhammer","Space Marine","40K","Sci-Fi"], size:"24.8 MB", date:"2025-11-02", files:3, supports:false, notes:"Hochdetailliertes Primaris Intercessor Modell. Druckbar ohne Supports bei 0.2mm Layer Height. Empfohlen: Resin.", favorite:false, path:"/mnt/user-data/3dprint/warhammer/space_marine_primaris.stl", icon:"⚔", rating:5 },
+  { id:2, name:"Chaos Space Marine Berzerker", format:"STL", category:"miniatures", tags:["Warhammer","Chaos","Space Marine","40K"], size:"31.2 MB", date:"2025-10-15", files:5, supports:true, notes:"World Eaters Berzerker Set. Mehrere Posenvarianten inklusive.", favorite:true, path:"/mnt/user-data/3dprint/warhammer/chaos_berzerker.stl", icon:"💀", rating:4 },
+  { id:3, name:"Ultramarine Captain Pose A", format:"3MF", category:"miniatures", tags:["Warhammer","Ultramarine","Space Marine","Captain"], size:"18.4 MB", date:"2025-11-10", files:2, supports:false, notes:"Mit original Texturfarben im 3MF. Direkt druckbar für mehrfarbigen Druck.", favorite:false, path:"/mnt/user-data/3dprint/warhammer/ultramarine_captain.3mf", icon:"🔵", rating:5 },
+  { id:4, name:"Fantasy Elf Ranger", format:"STL", category:"miniatures", tags:["Fantasy","Elf","DnD","RPG","Ranger"], size:"14.7 MB", date:"2025-09-28", files:1, supports:true, notes:"Kompatibel mit D&D 5e Maßstab (28mm). Feine Bogendetails.", favorite:false, path:"/mnt/user-data/3dprint/fantasy/elf_ranger.stl", icon:"🏹", rating:4 },
+  { id:5, name:"Dragon Wyrmling Set", format:"STL", category:"miniatures", tags:["Fantasy","Dragon","DnD","Creature"], size:"55.6 MB", date:"2025-11-18", files:6, supports:true, notes:"4 verschiedene Drachen-Typen (Feuer, Eis, Gift, Dunkel). Einzeln druckbar.", favorite:true, path:"/mnt/user-data/3dprint/fantasy/dragon_wyrmling.stl", icon:"🐉", rating:5 },
+  { id:6, name:"Caliper Halter für Schreibtisch", format:"STL", category:"tools", tags:["Werkzeug","Organizer","Schreibtisch","FDM"], size:"2.1 MB", date:"2025-08-05", files:1, supports:false, notes:"Passend für Messschieber bis 200mm. FDM-optimiert, keine Supports nötig.", favorite:false, path:"/mnt/user-data/3dprint/tools/caliper_holder.stl", icon:"📏", rating:3 },
+  { id:7, name:"Filament Spool Halter Wandmontage", format:"STL", category:"tools", tags:["3D Druck","Filament","Wandhalter","FDM"], size:"8.3 MB", date:"2025-10-22", files:4, supports:false, notes:"3-teiliger Wandhalter für Standard-Spulen. M4-Schrauben werden benötigt.", favorite:true, path:"/mnt/user-data/3dprint/tools/spool_wall_mount.stl", icon:"🔩", rating:5 },
+  { id:8, name:"Mandalorian Helm Full Size", format:"3MF", category:"cosplay", tags:["Mandalorian","Star Wars","Helm","Cosplay","Full-Size"], size:"142.0 MB", date:"2025-11-01", files:12, supports:false, notes:"Aufgeteilt in 12 Teile für FDM-Druck. Zusammenkleben mit Heißkleber empfohlen.", favorite:true, path:"/mnt/user-data/3dprint/cosplay/mandalorian_helm.3mf", icon:"🪖", rating:5 },
+  { id:9, name:"Vase Twisted Minimal", format:"STL", category:"deco", tags:["Vase","Deko","Minimal","Spiralmodus"], size:"3.4 MB", date:"2025-07-14", files:1, supports:false, notes:"Spiralvase-Modus empfohlen. Wandstärke: 0.8mm. Höhe: 20cm.", favorite:false, path:"/mnt/user-data/3dprint/deco/vase_twisted.stl", icon:"🏺", rating:4 },
+  { id:10, name:"Raspberry Pi 5 Gehäuse Active Cooler", format:"STL", category:"tech", tags:["Raspberry Pi","Gehäuse","Elektronik","FDM"], size:"6.8 MB", date:"2025-10-30", files:3, supports:false, notes:"Passend für RPi 5 mit offiziellem Active Cooler. Gute Luftzirkulation.", favorite:false, path:"/mnt/user-data/3dprint/tech/rpi5_case.stl", icon:"💻", rating:4 },
+  { id:11, name:"Space Marine Devastator Squad", format:"STL", category:"miniatures", tags:["Warhammer","Space Marine","40K","Heavy Weapons"], size:"67.3 MB", date:"2025-11-05", files:10, supports:true, notes:"5-Mann Squad mit schweren Waffen. Lascannon, Missile Launcher, Plasma Cannon Varianten.", favorite:false, path:"/mnt/user-data/3dprint/warhammer/devastator_squad.stl", icon:"🔫", rating:4 },
+  { id:12, name:"Gothic Kerzenhalter Set", format:"OBJ", category:"deco", tags:["Deko","Gothic","Kerze","Mittelalter"], size:"4.2 MB", date:"2025-06-20", files:3, supports:false, notes:"3er Set in unterschiedlichen Höhen. PLA/PETG empfohlen.", favorite:false, path:"/mnt/user-data/3dprint/deco/gothic_candles.obj", icon:"🕯", rating:3 },
+  { id:13, name:"Dungeon Tile Pack Vol.3", format:"STL", category:"miniatures", tags:["Fantasy","DnD","Dungeon","Terrain","RPG"], size:"89.1 MB", date:"2025-11-12", files:24, supports:false, notes:"24 Dungeon-Tiles in 5x5cm. Kompatibel mit OpenLock System.", favorite:true, path:"/mnt/user-data/3dprint/terrain/dungeon_tiles_v3.stl", icon:"🗺", rating:5 },
+  { id:14, name:"Cable Organizer USB-Hub", format:"3MF", category:"tech", tags:["Kabel","Organizer","USB","Schreibtisch"], size:"5.5 MB", date:"2025-09-01", files:2, supports:false, notes:"Für USB-Hubs bis 12cm Breite. Unterseite mit Klett-Montage.", favorite:false, path:"/mnt/user-data/3dprint/tech/cable_organizer.3mf", icon:"🔌", rating:4 },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let files = [...DEMO_FILES];
+let activeNav = 'all';
+let activeFormats = new Set();
+let currentView = 'grid';
+let openFile = null;
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  updateCounts();
+  applyFilters();
+  setupDrop();
+}
+
+// ─── NAV ─────────────────────────────────────────────────────────────────────
+function setNav(el, filter) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeNav = filter;
+
+  const titles = {
+    'all': 'Alle <span>Dateien</span>',
+    'fav': 'Meine <span>Favoriten</span>',
+    'recent': 'Zuletzt <span>hinzugefügt</span>',
+    'cat:miniatures': 'Kategorie: <span>Miniaturen</span>',
+    'cat:tools': 'Kategorie: <span>Werkzeug</span>',
+    'cat:deco': 'Kategorie: <span>Deko</span>',
+    'cat:tech': 'Kategorie: <span>Technik</span>',
+    'cat:cosplay': 'Kategorie: <span>Cosplay</span>',
+  };
+  document.getElementById('pageTitle').innerHTML = titles[filter] || 'Dateien';
+  applyFilters();
+}
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+function toggleChip(el) {
+  el.classList.toggle('active');
+  const fmt = el.dataset.fmt;
+  if (activeFormats.has(fmt)) activeFormats.delete(fmt);
+  else activeFormats.add(fmt);
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const sortVal = document.querySelector('.sort-select').value;
+
+  let result = files.filter(f => {
+    // nav filter
+    if (activeNav === 'fav' && !f.favorite) return false;
+    if (activeNav === 'recent') {
+      const d = new Date(f.date);
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+      if (d < cutoff) return false;
+    }
+    if (activeNav.startsWith('cat:')) {
+      const cat = activeNav.split(':')[1];
+      if (f.category !== cat) return false;
+    }
+    // format chips
+    if (activeFormats.size > 0 && !activeFormats.has(f.format)) return false;
+    // search
+    if (q) {
+      const searchable = [f.name, f.category, f.format, ...(f.tags||[])].join(' ').toLowerCase();
+      if (!searchable.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // sort
+  result.sort((a, b) => {
+    if (sortVal === 'name') return a.name.localeCompare(b.name);
+    if (sortVal === 'date') return new Date(b.date) - new Date(a.date);
+    if (sortVal === 'size') return parseFloat(b.size) - parseFloat(a.size);
+    if (sortVal === 'format') return a.format.localeCompare(b.format);
+    return 0;
+  });
+
+  renderFiles(result, q);
+  document.getElementById('resultInfo').innerHTML =
+    `<span>${result.length}</span> Datei${result.length !== 1 ? 'en' : ''} gefunden` +
+    (q ? ` für »${q}«` : '');
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function highlight(text, q) {
+  if (!q) return text;
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+  return text.replace(re, '<mark>$1</mark>');
+}
+
+function renderFiles(list, q = '') {
+  const grid = document.getElementById('filesGrid');
+  const lst = document.getElementById('filesList');
+
+  if (list.length === 0) {
+    const empty = `<div class="empty-state">
+      <div class="empty-icon">◈</div>
+      <div class="empty-title">Keine Dateien gefunden</div>
+      <div class="empty-sub">Versuche einen anderen Suchbegriff oder Filter</div>
+    </div>`;
+    grid.innerHTML = empty;
+    lst.innerHTML = empty;
+    return;
+  }
+
+  grid.innerHTML = list.map(f => `
+    <div class="card" onclick="openModal(${f.id})">
+      <div class="card-thumb">
+        <svg class="thumb-placeholder" viewBox="0 0 80 80" fill="none">
+          <rect x="10" y="20" width="60" height="45" rx="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="40" y="48" text-anchor="middle" font-size="26" fill="currentColor" opacity="0.4">${f.icon}</text>
+        </svg>
+        <div class="card-format fmt-${f.format.toLowerCase()}">${f.format}</div>
+        <div class="card-fav ${f.favorite ? 'active' : ''}" onclick="toggleFav(event, ${f.id})">★</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${highlight(f.name, q)}</div>
+        <div class="card-meta">
+          <span class="card-tag tag-${f.category}">${catLabel(f.category)}</span>
+          <span class="card-size">${f.size}</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-btn" onclick="event.stopPropagation(); showToast('ℹ Info geöffnet', '◈')">Details</div>
+          <div class="card-btn dl" onclick="event.stopPropagation(); downloadFile(${f.id})">⬇ Download</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  lst.innerHTML = list.map(f => `
+    <div class="list-item" onclick="openModal(${f.id})">
+      <div class="list-thumb">${f.icon}</div>
+      <div class="list-info">
+        <div class="list-title">${highlight(f.name, q)}</div>
+        <div class="list-meta">
+          <span class="card-tag tag-${f.category}">${catLabel(f.category)}</span>
+          <span class="card-format fmt-${f.format.toLowerCase()}" style="position:static;background:transparent;">${f.format}</span>
+          <span>·</span>
+          <span>${f.size}</span>
+          <span>·</span>
+          <span>${f.files} Datei${f.files > 1 ? 'en' : ''}</span>
+          <span>·</span>
+          <span>${formatDate(f.date)}</span>
+        </div>
+      </div>
+      <div class="list-actions">
+        <button class="card-btn" style="min-width:70px" onclick="event.stopPropagation(); toggleFav(event, ${f.id})">${f.favorite ? '★' : '☆'}</button>
+        <button class="card-btn dl" style="min-width:90px" onclick="event.stopPropagation(); downloadFile(${f.id})">⬇ Download</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function catLabel(cat) {
+  const m = { miniatures:'Miniaturen', tools:'Werkzeug', deco:'Deko', tech:'Technik', cosplay:'Cosplay', misc:'Sonstiges' };
+  return m[cat] || cat;
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('de-DE', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+// ─── VIEW TOGGLE ──────────────────────────────────────────────────────────────
+function setView(v) {
+  currentView = v;
+  document.getElementById('filesGrid').classList.toggle('hidden', v !== 'grid');
+  document.getElementById('filesList').classList.toggle('hidden', v !== 'list');
+  document.getElementById('gridBtn').classList.toggle('active', v === 'grid');
+  document.getElementById('listBtn').classList.toggle('active', v === 'list');
+}
+
+// ─── FAVORITE ─────────────────────────────────────────────────────────────────
+function toggleFav(event, id) {
+  event.stopPropagation();
+  const f = files.find(x => x.id === id);
+  if (!f) return;
+  f.favorite = !f.favorite;
+  updateCounts();
+  applyFilters();
+  showToast(f.favorite ? '★ Zu Favoriten hinzugefügt' : '☆ Von Favoriten entfernt', f.favorite ? '★' : '☆');
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(id) {
+  const f = files.find(x => x.id === id);
+  if (!f) return;
+  openFile = f;
+
+  document.getElementById('modalThumb').textContent = f.icon;
+  document.getElementById('modalTitle').textContent = f.name;
+  document.getElementById('modalPath').textContent = f.path;
+
+  const tagsEl = document.getElementById('modalTags');
+  tagsEl.innerHTML = `<span class="card-tag tag-${f.category}">${catLabel(f.category)}</span>` +
+    `<span class="card-format fmt-${f.format.toLowerCase()}" style="position:static;padding:3px 10px;border-radius:5px">${f.format}</span>` +
+    (f.favorite ? `<span style="color:var(--yellow);font-size:14px">★ Favorit</span>` : '');
+
+  document.getElementById('modalGrid').innerHTML = `
+    <div class="detail-item"><div class="detail-label">Dateigröße</div><div class="detail-val accent">${f.size}</div></div>
+    <div class="detail-item"><div class="detail-label">Anzahl Dateien</div><div class="detail-val">${f.files}</div></div>
+    <div class="detail-item"><div class="detail-label">Hinzugefügt</div><div class="detail-val">${formatDate(f.date)}</div></div>
+    <div class="detail-item"><div class="detail-label">Supports nötig</div><div class="detail-val" style="color:${f.supports ? '#ff4757':'#00d4aa'}">${f.supports ? '✓ Ja' : '✕ Nein'}</div></div>
+  `;
+
+  document.getElementById('modalNotes').innerHTML = `
+    <strong style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Notizen</strong><br><br>
+    ${f.notes}
+  `;
+
+  document.getElementById('modalActions').innerHTML = `
+    <button class="btn btn-primary" onclick="downloadFile(${f.id}); closeModalDirect()">⬇ Herunterladen</button>
+    <button class="btn btn-ghost" onclick="toggleFav(event, ${f.id}); document.getElementById('modalTags').querySelector('span:last-child')?.remove();">${f.favorite ? '☆ Aus Favoriten' : '★ Favorit'}</button>
+    <button class="btn btn-ghost" style="color:var(--red);border-color:rgba(255,71,87,0.3)" onclick="showToast('🗑 Datei gelöscht','🗑'); closeModalDirect()">🗑 Löschen</button>
+  `;
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+// ─── DOWNLOAD ─────────────────────────────────────────────────────────────────
+function downloadFile(id) {
+  const f = files.find(x => x.id === id);
+  if (!f) return;
+  showToast(`⬇ Download gestartet: ${f.name}`, '⬇');
+  // Echter Download: window.location.href = `/api/download?path=${encodeURIComponent(f.path)}`;
+}
+
+// ─── IMPORT ───────────────────────────────────────────────────────────────────
+function importFiles(input) {
+  const newFiles = Array.from(input.files).map((file, i) => {
+    const ext = file.name.split('.').pop().toUpperCase();
+    return {
+      id: Date.now() + i,
+      name: file.name.replace(/\.[^.]+$/, ''),
+      format: ext,
+      category: 'misc',
+      tags: ['Neu'],
+      size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+      date: new Date().toISOString().split('T')[0],
+      files: 1,
+      supports: false,
+      notes: 'Neu importierte Datei — noch keine Notizen.',
+      favorite: false,
+      path: `/mnt/user-data/3dprint/misc/${file.name}`,
+      icon: '📄',
+      rating: 0
+    };
+  });
+  files = [...newFiles, ...files];
+  updateCounts();
+  applyFilters();
+  showToast(`✓ ${newFiles.length} Datei${newFiles.length > 1 ? 'en' : ''} importiert`, '✓');
+}
+
+// ─── DRAG & DROP ──────────────────────────────────────────────────────────────
+function setupDrop() {
+  const zone = document.getElementById('dropZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    const dt = e.dataTransfer;
+    if (dt.files.length) importFiles({ files: dt.files });
+  });
+  zone.addEventListener('click', () => document.getElementById('fileInput').click());
+}
+
+// ─── COUNTS ───────────────────────────────────────────────────────────────────
+function updateCounts() {
+  const counts = {
+    all: files.length,
+    fav: files.filter(f => f.favorite).length,
+    rec: files.filter(f => {
+      const d = new Date(f.date), c = new Date(); c.setDate(c.getDate()-30); return d >= c;
+    }).length,
+    mini: files.filter(f => f.category === 'miniatures').length,
+    tools: files.filter(f => f.category === 'tools').length,
+    deco: files.filter(f => f.category === 'deco').length,
+    tech: files.filter(f => f.category === 'tech').length,
+    cos: files.filter(f => f.category === 'cosplay').length,
+  };
+  Object.entries(counts).forEach(([k,v]) => {
+    const el = document.getElementById(`cnt-${k}`);
+    if (el) el.textContent = v;
+  });
+
+  document.getElementById('stat-total').textContent = files.length;
+  const totalMB = files.reduce((s, f) => s + parseFloat(f.size), 0);
+  document.getElementById('stat-size').textContent =
+    totalMB > 1024 ? (totalMB/1024).toFixed(1)+' GB' : totalMB.toFixed(0)+' MB';
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, icon = '✓') {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastIcon').textContent = icon;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
