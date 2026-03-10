@@ -1340,6 +1340,8 @@ class ThreeMFLoader extends Loader {
 
 			const objectData = modelData[ 'resources' ][ 'object' ][ objectId ];
 
+			if ( ! objectData ) return; // object ID referenced but not defined in resources
+
 			if ( objectData[ 'mesh' ] ) {
 
 				const meshData = objectData[ 'mesh' ];

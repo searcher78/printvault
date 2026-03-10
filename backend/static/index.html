@@ -2107,8 +2107,18 @@ async function open3DViewer(fileId, format, name) {
 
     } else if (format === '3MF') {
       root = await new Promise((res, rej) => new ThreeMFLoader().load(url, res, null, rej));
-      root.traverse(c => { if (c.isMesh) c.material = mat.clone(); });
+      // Override all materials and apply uniform color (ignore embedded textures/colors)
+      root.traverse(c => {
+        if (c.isMesh) {
+          c.material = mat.clone();
+          if (c.geometry) c.geometry.computeVertexNormals();
+        }
+      });
     }
+
+    // Verify something was loaded
+    const meshCount = (() => { let n = 0; root.traverse(c => { if (c.isMesh) n++; }); return n; })();
+    if (meshCount === 0) throw new Error('Keine Geometrie gefunden (0 Meshes)');
 
     scene.add(root);
 
@@ -2118,6 +2128,7 @@ async function open3DViewer(fileId, format, name) {
     const size   = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
+    // Move root so bounding box center is at origin
     root.position.sub(center);
 
     const dist = maxDim * 1.8;
