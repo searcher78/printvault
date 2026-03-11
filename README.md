@@ -10,7 +10,9 @@ A self-hosted 3D print file manager for Unraid (and any Docker host). Scans a lo
 - **Thumbnail generation** – renders STL/3MF/OBJ files to PNG previews (no GPU required)
 - **AI categorization** – uses Qwen2.5-VL via Ollama to tag and categorize files
 - **Interactive 3D viewer** – rotate, zoom, and pan models directly in the browser (Three.js, no CDN)
-- **Folder browser** – navigate your directory structure inside the UI
+- **Folder tree** – collapsible folder hierarchy in the sidebar; clicking a folder shows all files including subfolders
+- **Folder preview images** – if a folder contains an image file (e.g. a photo of the finished print), it is shown as a thumbnail in the sidebar and as a hero banner when browsing the folder
+- **Rename files & folders** – rename files and folders directly from the UI; changes are applied on disk
 - **Search & filter** – by name, tag, category, format, print status, and favorite
 - **Edit metadata** – categories, tags, difficulty, support requirements, notes, print status
 - **Dynamic categories** – create and delete custom categories from the sidebar
@@ -71,12 +73,12 @@ Open `docker-compose.yml` and update the volume path to point to your 3D print f
 
 ```yaml
 volumes:
-  - /mnt/user/3dprint:/files:ro   # <-- change to your actual share path
+  - /mnt/user/3dprint:/files   # <-- change to your actual share path
   - ./data/db:/app/data/db
   - ./data/thumbnails:/app/data/thumbnails
 ```
 
-The files share is mounted read-only — PrintVault never modifies your files.
+The volume is mounted read-write to allow renaming files and folders from the UI.
 
 ---
 
@@ -144,7 +146,10 @@ Or use **Watchtower** to update automatically when a new image is published to `
 | `PUT` | `/api/files/{id}` | Update metadata |
 | `GET` | `/api/files/{id}/download` | Download original file |
 | `GET` | `/api/thumbnails/{id}` | Thumbnail PNG |
-| `GET` | `/api/folders` | Folder list with file counts |
+| `GET` | `/api/folders` | Folder list with file counts and image flag |
+| `GET` | `/api/folder-image` | Serve the preview image of a folder |
+| `POST` | `/api/files/{id}/rename` | Rename a file on disk |
+| `POST` | `/api/folders/rename` | Rename a folder on disk |
 | `POST` | `/api/scan` | Trigger a manual scan |
 | `POST` | `/api/reprocess` | Re-render all thumbnails |
 | `GET` | `/api/stats` | Library statistics |

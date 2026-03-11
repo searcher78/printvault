@@ -4,7 +4,7 @@ services:
     ports:
       - "8765:8000"
     volumes:
-      - /mnt/user/3dprint:/files
+      - /var/home/carstenwiemann/Downloads:/files
       - ./data/db:/app/data/db
       - ./data/thumbnails:/app/data/thumbnails
     environment:
