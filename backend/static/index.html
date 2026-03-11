@@ -1065,6 +1065,15 @@
     font-family: 'Space Mono', monospace; font-size: 10px;
     color: rgba(255,255,255,0.6); margin-top: 2px;
   }
+  .folder-hero-zoom {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; border-radius: 6px; width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 15px; transition: background 0.15s;
+    backdrop-filter: blur(4px);
+  }
+  .folder-hero-zoom:hover { background: rgba(0,212,170,0.5); border-color: var(--accent); }
 
   /* FOLDER NAV */
   .folder-nav-list { max-height: 45vh; overflow-y: auto; }
@@ -1252,6 +1261,7 @@
     <!-- FOLDER HERO IMAGE -->
     <div id="folderHero" class="folder-hero hidden">
       <img id="folderHeroImg" src="" alt="">
+      <button class="folder-hero-zoom" onclick="openHeroLightbox()" title="Vollbild">⤢</button>
       <div class="folder-hero-overlay">
         <div class="folder-hero-name" id="folderHeroName"></div>
         <div class="folder-hero-count" id="folderHeroCount"></div>
@@ -2194,6 +2204,12 @@ function showToast(msg, icon = '✓') {
 }
 
 // ─── LIGHTBOX ─────────────────────────────────────────────────────────────────
+function openHeroLightbox() {
+  const src = document.getElementById('folderHeroImg').src;
+  const name = document.getElementById('folderHeroName').textContent;
+  openLightbox(src, name);
+}
+
 function openLightbox(src, alt) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightboxImg');
