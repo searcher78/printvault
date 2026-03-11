@@ -1454,16 +1454,21 @@ function setNav(el, nav) {
 
 function startFolderRename(event, folder, currentDisplay) {
   event.stopPropagation();
-  const navItem = document.querySelector(`.nav-item[data-folder="${folder.replace(/"/g, '\\"')}"]`);
+  // Use closest() to find the nav-item — avoids CSS selector escaping issues
+  const navItem = event.currentTarget.closest('.nav-item');
   if (!navItem) return;
   const nameSpan = navItem.querySelector('.folder-name-span');
+  if (!nameSpan) return;
   const input = document.createElement('input');
   input.className = 'folder-rename-input';
   input.value = currentDisplay;
   nameSpan.replaceWith(input);
   input.focus(); input.select();
 
+  let committed = false;
   async function commit() {
+    if (committed) return;
+    committed = true;
     const newName = input.value.trim();
     if (!newName || newName === currentDisplay) { await loadFolders(); return; }
     try {
@@ -1482,9 +1487,10 @@ function startFolderRename(event, folder, currentDisplay) {
   }
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); commit(); }
-    if (e.key === 'Escape') { loadFolders(); }
+    if (e.key === 'Escape') { committed = true; loadFolders(); }
   });
-  input.addEventListener('blur', commit);
+  // Delay blur listener to avoid it firing immediately from the button click
+  setTimeout(() => input.addEventListener('blur', commit), 150);
 }
 
 // ─── FOLDERS ──────────────────────────────────────────────────────────────────
