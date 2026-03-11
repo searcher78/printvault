@@ -1044,8 +1044,17 @@
   .card-thumb.has-thumb { cursor: zoom-in; }
 
   /* FOLDER NAV */
-  .folder-nav-list { max-height: 190px; overflow-y: auto; }
+  .folder-nav-list { max-height: 45vh; overflow-y: auto; }
   .folder-nav-list::-webkit-scrollbar { width: 3px; }
+  .folder-tree-children { display: none; }
+  .folder-tree-children.open { display: block; }
+  .folder-toggle {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 9px; padding: 0 2px; flex-shrink: 0; width: 14px; text-align: center;
+    transition: transform 0.15s;
+  }
+  .folder-toggle.open { transform: rotate(90deg); }
+  .folder-toggle.leaf { opacity: 0; pointer-events: none; }
   .folder-rename-btn {
     background: none; border: none; color: var(--text-muted); cursor: pointer;
     font-size: 11px; padding: 2px 4px; border-radius: 3px; opacity: 0;
@@ -1337,10 +1346,11 @@ let activeNav    = 'all';
 let activeFormat = null;
 let activeFolder = null;   // folder filter (relative path)
 let currentView  = 'grid';
-let openFileId   = null;
-let files        = [];
-let searchTimer  = null;
-let stats        = {};
+let openFileId         = null;
+let files              = [];
+let searchTimer        = null;
+let stats              = {};
+let folderTreeExpanded = new Set();  // paths that are expanded in the tree
 let categories   = [
   {key:'miniatures', label:'Miniaturen', icon:'⚔'},
   {key:'tools',      label:'Werkzeug',   icon:'🔧'},
@@ -1494,6 +1504,66 @@ function startFolderRename(event, folder, currentDisplay) {
 }
 
 // ─── FOLDERS ──────────────────────────────────────────────────────────────────
+function buildFolderTree(folders) {
+  const root = { children: {}, count: 0, total: 0, path: '', name: '' };
+  for (const f of folders) {
+    const parts = f.folder.split('/');
+    let node = root;
+    let cur = '';
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      cur = cur ? cur + '/' + part : part;
+      if (!node.children[part]) {
+        node.children[part] = { name: part, path: cur, count: 0, total: 0, children: {} };
+      }
+      if (i === parts.length - 1) node.children[part].count = f.count;
+      node = node.children[part];
+    }
+  }
+  function calcTotal(node) {
+    node.total = node.count;
+    for (const c of Object.values(node.children)) node.total += calcTotal(c);
+    return node.total;
+  }
+  calcTotal(root);
+  return root;
+}
+
+function renderFolderTree(node, level) {
+  return Object.values(node.children).map(child => {
+    const hasChildren = Object.keys(child.children).length > 0;
+    const expanded    = folderTreeExpanded.has(child.path);
+    const childId     = 'fc-' + child.path.replace(/[^a-z0-9]/gi, '_');
+    const indent      = level * 12;
+    return `
+      <div class="nav-item" data-folder="${esc(child.path)}"
+           style="padding-left:${12 + indent}px"
+           onclick="setFolder(this,'${esc(child.path)}','${esc(child.name)}')">
+        <button class="folder-toggle${hasChildren ? (expanded ? ' open' : '') : ' leaf'}"
+                onclick="toggleFolderNode(event,'${esc(child.path)}','${childId}')">▶</button>
+        <span class="icon" style="font-size:13px">📁</span>
+        <span class="folder-name-span" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(child.name)}</span>
+        <button class="folder-rename-btn" title="Umbenennen"
+                onclick="startFolderRename(event,'${esc(child.path)}','${esc(child.name)}')">✎</button>
+        <span class="count">${child.total}</span>
+      </div>
+      ${hasChildren ? `<div class="folder-tree-children${expanded ? ' open' : ''}" id="${childId}">
+        ${renderFolderTree(child, level + 1)}
+      </div>` : ''}`;
+  }).join('');
+}
+
+function toggleFolderNode(event, path, childId) {
+  event.stopPropagation();
+  const btn = event.currentTarget;
+  const container = document.getElementById(childId);
+  if (!container) return;
+  const isOpen = container.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+  if (isOpen) folderTreeExpanded.add(path);
+  else folderTreeExpanded.delete(path);
+}
+
 async function loadFolders() {
   try {
     const folders = await api('GET', '/api/folders');
@@ -1502,14 +1572,8 @@ async function loadFolders() {
       list.innerHTML = '<div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">Keine Unterordner</div>';
       return;
     }
-    list.innerHTML = folders.map(f => `
-      <div class="nav-item" data-folder="${esc(f.folder)}" onclick="setFolder(this,'${esc(f.folder)}','${esc(f.display)}')">
-        <span class="icon" style="font-size:13px">📁</span>
-        <span class="folder-name-span" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(f.display)}</span>
-        <button class="folder-rename-btn" title="Umbenennen"
-                onclick="startFolderRename(event,'${esc(f.folder)}','${esc(f.display)}')">✎</button>
-        <span class="count">${f.count}</span>
-      </div>`).join('');
+    const tree = buildFolderTree(folders);
+    list.innerHTML = renderFolderTree(tree, 0);
   } catch(e) { console.error('folders error', e); }
 }
 
