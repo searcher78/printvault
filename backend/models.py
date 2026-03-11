@@ -66,7 +66,6 @@ class PrintFileRead(SQLModel):
 
 
 class PrintFileUpdate(SQLModel):
-    name: Optional[str] = None
     category: Optional[str] = None
     tags: Optional[list[str]] = None
     supports_needed: Optional[bool] = None
