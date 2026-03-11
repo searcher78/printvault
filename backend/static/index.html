@@ -1046,6 +1046,18 @@
   /* FOLDER NAV */
   .folder-nav-list { max-height: 190px; overflow-y: auto; }
   .folder-nav-list::-webkit-scrollbar { width: 3px; }
+  .folder-rename-btn {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 11px; padding: 2px 4px; border-radius: 3px; opacity: 0;
+    transition: opacity 0.15s; flex-shrink: 0;
+  }
+  .nav-item:hover .folder-rename-btn { opacity: 1; }
+  .folder-rename-btn:hover { color: var(--accent); }
+  .folder-rename-input {
+    background: var(--surface3); border: 1px solid var(--border-accent); border-radius: 4px;
+    color: var(--text); font-family: 'Inter', sans-serif; font-size: 12px;
+    padding: 2px 6px; flex: 1; min-width: 0; outline: none;
+  }
 
   /* EDIT PANEL */
   .edit-section { margin-bottom: 18px; }
@@ -1241,6 +1253,11 @@
       <!-- EDIT PANEL -->
       <div id="editPanel" class="hidden" style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
         <div class="edit-section">
+          <span class="edit-section-label">Dateiname</span>
+          <input class="edit-textarea" id="editName" type="text" maxlength="200"
+                 style="padding:8px 10px;height:auto;resize:none;font-family:'Inter',sans-serif">
+        </div>
+        <div class="edit-section">
           <span class="edit-section-label">Kategorie</span>
           <div class="cat-picker" id="catPickerContainer"></div>
         </div>
@@ -1324,6 +1341,7 @@ let openFileId   = null;
 let files        = [];
 let searchTimer  = null;
 let stats        = {};
+let folderAliases = {};   // { "relative/path": "Display Name" }
 let categories   = [
   {key:'miniatures', label:'Miniaturen', icon:'⚔'},
   {key:'tools',      label:'Werkzeug',   icon:'🔧'},
@@ -1358,6 +1376,7 @@ async function api(method, path, body) {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   await loadCategories();
+  await loadFolderAliases();
   renderCategoryNav();
   renderCatPicker();
   await Promise.all([loadStats(), loadFiles(), loadFolders()]);
@@ -1435,6 +1454,52 @@ function setNav(el, nav) {
   loadFiles();
 }
 
+// ─── FOLDER ALIASES ────────────────────────────────────────────────────────────
+async function loadFolderAliases() {
+  try {
+    const s = await api('GET', '/api/settings');
+    folderAliases = s?.folder_aliases ? JSON.parse(s.folder_aliases) : {};
+  } catch(e) { folderAliases = {}; }
+}
+
+async function saveFolderAlias(folder, alias) {
+  if (alias) folderAliases[folder] = alias;
+  else delete folderAliases[folder];
+  await api('PUT', '/api/settings', { folder_aliases: JSON.stringify(folderAliases) });
+}
+
+function folderDisplay(folder, fallback) {
+  return folderAliases[folder] || fallback;
+}
+
+function startFolderRename(event, folder, currentDisplay) {
+  event.stopPropagation();
+  const navItem = document.querySelector(`.nav-item[data-folder="${folder.replace(/"/g, '\\"')}"]`);
+  if (!navItem) return;
+  const nameSpan = navItem.querySelector('.folder-name-span');
+  const input = document.createElement('input');
+  input.className = 'folder-rename-input';
+  input.value = currentDisplay;
+  nameSpan.replaceWith(input);
+  input.focus(); input.select();
+
+  async function commit() {
+    const newName = input.value.trim();
+    const display = newName || currentDisplay;
+    await saveFolderAlias(folder, newName || null);
+    await loadFolders();
+    if (activeFolder === folder) {
+      document.getElementById('pageTitle').innerHTML = `Ordner: <span>${esc(display)}</span>`;
+    }
+    showToast('✓ Ordnername gespeichert', '✓');
+  }
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { loadFolders(); }
+  });
+  input.addEventListener('blur', commit);
+}
+
 // ─── FOLDERS ──────────────────────────────────────────────────────────────────
 async function loadFolders() {
   try {
@@ -1444,12 +1509,17 @@ async function loadFolders() {
       list.innerHTML = '<div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">Keine Unterordner</div>';
       return;
     }
-    list.innerHTML = folders.map(f => `
-      <div class="nav-item" data-folder="${esc(f.folder)}" onclick="setFolder(this,'${esc(f.folder)}','${esc(f.display)}')">
+    list.innerHTML = folders.map(f => {
+      const display = folderDisplay(f.folder, f.display);
+      return `
+      <div class="nav-item" data-folder="${esc(f.folder)}" onclick="setFolder(this,'${esc(f.folder)}','${esc(display)}')">
         <span class="icon" style="font-size:13px">📁</span>
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(f.display)}</span>
+        <span class="folder-name-span" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(display)}</span>
+        <button class="folder-rename-btn" title="Umbenennen"
+                onclick="startFolderRename(event,'${esc(f.folder)}','${esc(display)}')">✎</button>
         <span class="count">${f.count}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch(e) { console.error('folders error', e); }
 }
 
@@ -1463,7 +1533,7 @@ function setFolder(el, folder, displayName) {
 }
 
 function filterByFolder(folder) {
-  const displayName = folder.split('/').pop() || folder;
+  const displayName = folderDisplay(folder, folder.split('/').pop() || folder);
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.querySelector(`.nav-item[data-folder="${folder.replace(/"/g, '\\"')}"]`);
   if (el) el.classList.add('active');
@@ -1852,6 +1922,9 @@ function enterEditMode(f) {
   sb.classList.toggle('on', f.supports_needed);
   sb.textContent = f.supports_needed ? '✓ Ja' : '✕ Nein';
 
+  // Name
+  document.getElementById('editName').value = f.name || '';
+
   // Notes
   document.getElementById('editNotes').value = f.notes || '';
 
@@ -1870,12 +1943,13 @@ function cancelEdit() {
 
 async function saveEdit() {
   if (!editFile) return;
+  const name          = document.getElementById('editName').value.trim() || editFile.name;
   const category      = document.querySelector('.cat-btn.sel')?.dataset.cat || editFile.category;
   const difficulty    = document.querySelector('.diff-btn[class*="sel-"]')?.dataset.diff || editFile.difficulty;
   const supports_needed = document.getElementById('supportsBtn').classList.contains('on');
   const notes         = document.getElementById('editNotes').value.trim();
   try {
-    await api('PUT', `/api/files/${editFile.id}`, { category, tags: editTags, difficulty, supports_needed, notes });
+    await api('PUT', `/api/files/${editFile.id}`, { name, category, tags: editTags, difficulty, supports_needed, notes });
     showToast('✓ Gespeichert', '✓');
     const id = editFile.id;
     cancelEdit();
