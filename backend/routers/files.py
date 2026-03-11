@@ -12,6 +12,41 @@ from models import PrintFile, PrintFileRead, PrintFileUpdate
 
 router = APIRouter()
 
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_PRIORITY_STEMS = {"preview", "cover", "thumbnail", "render", "foto", "photo",
+                   "bild", "fertig", "finished", "result"}
+
+
+def _find_folder_image(folder_abs: str) -> bool:
+    """Return True if the folder contains at least one image file."""
+    try:
+        return any(
+            os.path.splitext(e)[1].lower() in _IMAGE_EXTS
+            for e in os.listdir(folder_abs)
+            if os.path.isfile(os.path.join(folder_abs, e))
+        )
+    except OSError:
+        return False
+
+
+def _get_folder_image_path(folder_abs: str) -> str | None:
+    """Return the path of the best image in the folder, or None."""
+    try:
+        entries = os.listdir(folder_abs)
+    except OSError:
+        return None
+    images = sorted(
+        e for e in entries
+        if os.path.splitext(e)[1].lower() in _IMAGE_EXTS
+        and os.path.isfile(os.path.join(folder_abs, e))
+    )
+    if not images:
+        return None
+    for img in images:
+        if os.path.splitext(img)[0].lower() in _PRIORITY_STEMS:
+            return os.path.join(folder_abs, img)
+    return os.path.join(folder_abs, images[0])
+
 
 @router.get("/folders")
 def get_folders(session: Session = Depends(get_session)):
@@ -30,10 +65,32 @@ def get_folders(session: Session = Depends(get_session)):
         if len(folders[rel]["preview_ids"]) < 4:
             folders[rel]["preview_ids"].append(f.id)
     return [
-        {"folder": k, "display": os.path.basename(k) or k,
-         "count": v["count"], "preview_ids": v["preview_ids"]}
+        {
+            "folder": k,
+            "display": os.path.basename(k) or k,
+            "count": v["count"],
+            "preview_ids": v["preview_ids"],
+            "has_image": _find_folder_image(os.path.join(files_dir, k)),
+        }
         for k, v in sorted(folders.items())
     ]
+
+
+@router.get("/folder-image")
+def get_folder_image(folder: str):
+    """Serve the preview image found in the given folder (relative path)."""
+    files_dir = os.getenv("FILES_DIR", "/files")
+    folder_abs = os.path.normpath(os.path.join(files_dir, folder))
+    # Security: must stay within files_dir
+    if not folder_abs.startswith(os.path.normpath(files_dir)):
+        raise HTTPException(status_code=400, detail="Invalid folder path")
+    img_path = _get_folder_image_path(folder_abs)
+    if not img_path:
+        raise HTTPException(status_code=404, detail="No image found in folder")
+    ext = os.path.splitext(img_path)[1].lower().lstrip(".")
+    mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+            "webp": "image/webp", "gif": "image/gif"}.get(ext, "image/jpeg")
+    return FileResponse(img_path, media_type=mime)
 
 
 @router.get("/files", response_model=list[PrintFileRead])

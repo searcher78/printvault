@@ -1043,6 +1043,29 @@
   /* Make card thumbnails show zoom cursor when image available */
   .card-thumb.has-thumb { cursor: zoom-in; }
 
+  /* FOLDER HERO */
+  .folder-hero {
+    position: relative; border-radius: 10px; overflow: hidden;
+    margin-bottom: 20px; max-height: 220px; background: var(--surface2);
+  }
+  .folder-hero img {
+    width: 100%; height: 220px; object-fit: cover; display: block;
+    filter: brightness(0.85);
+  }
+  .folder-hero-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    padding: 20px 20px 14px;
+  }
+  .folder-hero-name {
+    font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700;
+    color: #fff; letter-spacing: 1px;
+  }
+  .folder-hero-count {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    color: rgba(255,255,255,0.6); margin-top: 2px;
+  }
+
   /* FOLDER NAV */
   .folder-nav-list { max-height: 45vh; overflow-y: auto; }
   .folder-nav-list::-webkit-scrollbar { width: 3px; }
@@ -1223,6 +1246,15 @@
           <button class="view-btn active" id="gridBtn" onclick="setView('grid')">⊞</button>
           <button class="view-btn" id="listBtn" onclick="setView('list')">≡</button>
         </div>
+      </div>
+    </div>
+
+    <!-- FOLDER HERO IMAGE -->
+    <div id="folderHero" class="folder-hero hidden">
+      <img id="folderHeroImg" src="" alt="">
+      <div class="folder-hero-overlay">
+        <div class="folder-hero-name" id="folderHeroName"></div>
+        <div class="folder-hero-count" id="folderHeroCount"></div>
       </div>
     </div>
 
@@ -1447,6 +1479,7 @@ function setNav(el, nav) {
   el.classList.add('active');
   activeNav    = nav;
   activeFolder = null;  // clear folder filter when using main nav
+  hideFolderHero();
 
   const staticTitles = {
     'all':    'Alle <span>Dateien</span>',
@@ -1505,7 +1538,7 @@ function startFolderRename(event, folder, currentDisplay) {
 
 // ─── FOLDERS ──────────────────────────────────────────────────────────────────
 function buildFolderTree(folders) {
-  const root = { children: {}, count: 0, total: 0, path: '', name: '' };
+  const root = { children: {}, count: 0, total: 0, path: '', name: '', hasImage: false };
   for (const f of folders) {
     const parts = f.folder.split('/');
     let node = root;
@@ -1514,9 +1547,12 @@ function buildFolderTree(folders) {
       const part = parts[i];
       cur = cur ? cur + '/' + part : part;
       if (!node.children[part]) {
-        node.children[part] = { name: part, path: cur, count: 0, total: 0, children: {} };
+        node.children[part] = { name: part, path: cur, count: 0, total: 0, hasImage: false, children: {} };
       }
-      if (i === parts.length - 1) node.children[part].count = f.count;
+      if (i === parts.length - 1) {
+        node.children[part].count    = f.count;
+        node.children[part].hasImage = f.has_image || false;
+      }
       node = node.children[part];
     }
   }
@@ -1535,13 +1571,18 @@ function renderFolderTree(node, level) {
     const expanded    = folderTreeExpanded.has(child.path);
     const childId     = 'fc-' + child.path.replace(/[^a-z0-9]/gi, '_');
     const indent      = level * 12;
+    const icon        = child.hasImage
+      ? `<img src="/api/folder-image?folder=${encodeURIComponent(child.path)}"
+              style="width:20px;height:20px;border-radius:3px;object-fit:cover;flex-shrink:0"
+              onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'icon',style:'font-size:13px',textContent:'📁'}))">`
+      : `<span class="icon" style="font-size:13px">📁</span>`;
     return `
       <div class="nav-item" data-folder="${esc(child.path)}"
            style="padding-left:${12 + indent}px"
-           onclick="setFolder(this,'${esc(child.path)}','${esc(child.name)}')">
+           onclick="setFolder(this,'${esc(child.path)}','${esc(child.name)}',${child.hasImage})">
         <button class="folder-toggle${hasChildren ? (expanded ? ' open' : '') : ' leaf'}"
                 onclick="toggleFolderNode(event,'${esc(child.path)}','${childId}')">▶</button>
-        <span class="icon" style="font-size:13px">📁</span>
+        ${icon}
         <span class="folder-name-span" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(child.name)}</span>
         <button class="folder-rename-btn" title="Umbenennen"
                 onclick="startFolderRename(event,'${esc(child.path)}','${esc(child.name)}')">✎</button>
@@ -1577,23 +1618,41 @@ async function loadFolders() {
   } catch(e) { console.error('folders error', e); }
 }
 
-function setFolder(el, folder, displayName) {
+function showFolderHero(folder, displayName, hasImage, count) {
+  const hero = document.getElementById('folderHero');
+  if (!hasImage) { hero.classList.add('hidden'); return; }
+  document.getElementById('folderHeroImg').src  = `/api/folder-image?folder=${encodeURIComponent(folder)}`;
+  document.getElementById('folderHeroName').textContent  = displayName;
+  document.getElementById('folderHeroCount').textContent = `${count} Dateien`;
+  hero.classList.remove('hidden');
+}
+
+function hideFolderHero() {
+  document.getElementById('folderHero').classList.add('hidden');
+}
+
+function setFolder(el, folder, displayName, hasImage) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
   activeNav    = 'folder';
   activeFolder = folder;
   document.getElementById('pageTitle').innerHTML = `Ordner: <span>${esc(displayName)}</span>`;
+  const count = el.querySelector('.count')?.textContent || '';
+  showFolderHero(folder, displayName, hasImage, count);
   loadFiles();
 }
 
 function filterByFolder(folder) {
   const displayName = folder.split('/').pop() || folder;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const el = document.querySelector(`.nav-item[data-folder="${folder.replace(/"/g, '\\"')}"]`);
+  const el = Array.from(document.querySelectorAll('.nav-item[data-folder]')).find(e => e.dataset.folder === folder) || null;
+  const hasImage = el?.querySelector('img') != null;
+  const count    = el?.querySelector('.count')?.textContent || '';
   if (el) el.classList.add('active');
   activeNav    = 'folder';
   activeFolder = folder;
   document.getElementById('pageTitle').innerHTML = `Ordner: <span>${esc(displayName)}</span>`;
+  showFolderHero(folder, displayName, hasImage, count);
   closeModal();
   loadFiles();
 }
