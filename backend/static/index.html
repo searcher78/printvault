@@ -1220,6 +1220,26 @@
 
   .hidden { display: none !important; }
 
+  /* FILESET PICKER */
+  .fileset-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .fileset-row:last-child { border-bottom: none; }
+  .fileset-row-name { flex: 1; font-size: 13px; color: var(--text); }
+  .fileset-new-row {
+    display: flex; gap: 8px; margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .card-remove-set {
+    position: absolute; top: 6px; right: 6px; z-index: 3;
+    background: rgba(255,71,87,0.85); color: #fff;
+    border: none; border-radius: 4px; padding: 2px 6px;
+    font-size: 10px; cursor: pointer; font-family: 'Space Mono', monospace;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .card:hover .card-remove-set { opacity: 1; }
+
   /* SETS VIEW */
   .sets-grid {
     display: grid;
@@ -1509,6 +1529,24 @@
   <img id="lightboxImg" src="" alt="">
 </div>
 
+<!-- FILESET PICKER DIALOG -->
+<div class="locate-overlay hidden" id="filesetPickerOverlay" onclick="if(event.target===this)closeFilesetPicker()">
+  <div class="locate-dialog" style="width:440px">
+    <h3 data-i18n="fileset_add_title">In Set hinzufügen</h3>
+    <div id="filesetPickerList"></div>
+    <div class="fileset-new-row">
+      <input class="tag-add-input" id="filesetNewName" style="flex:1"
+             data-i18n-placeholder="fileset_new_placeholder" placeholder="Set-Name…"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();createAndAddToFileset()}">
+      <button class="btn btn-primary" style="font-size:12px;white-space:nowrap"
+              onclick="createAndAddToFileset()" data-i18n="fileset_create_btn">Erstellen & Hinzufügen</button>
+    </div>
+    <div style="margin-top:12px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeFilesetPicker()" data-i18n="btn_cancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- SET EDITOR DIALOG -->
 <div class="locate-overlay hidden" id="setEditorOverlay" onclick="if(event.target===this)closeSetEditor()">
   <div class="locate-dialog" style="width:480px">
@@ -1636,9 +1674,10 @@ const CAT_COLORS = [
   {bg:'rgba(0,212,170,0.15)',   text:'#00d4aa'},
   {bg:'rgba(16,185,129,0.15)',  text:'#10b981'},
 ];
-let editFile     = null;
-let editTags     = [];
-let currentSetId = null;  // DB id of set for the active folder (null if none)
+let editFile        = null;
+let editTags        = [];
+let currentSetId    = null;  // DB id of set for the active folder (null if none)
+let activeFileSetId = null;  // DB id of currently viewed FileSet
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -1682,6 +1721,10 @@ async function loadStats() {
 
 // ─── LOAD FILES ───────────────────────────────────────────────────────────────
 async function loadFiles() {
+  if (activeNav === 'fileset' && activeFileSetId) {
+    await loadFileSetFiles(activeFileSetId);
+    return;
+  }
   const grid = document.getElementById('filesGrid');
   const lst  = document.getElementById('filesList');
   grid.innerHTML = lst.innerHTML = loadingHTML();
@@ -1720,8 +1763,9 @@ function buildParams() {
 function setNav(el, nav) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
-  activeNav    = nav;
-  activeFolder = null;  // clear folder filter when using main nav
+  activeNav       = nav;
+  activeFolder    = null;  // clear folder filter when using main nav
+  activeFileSetId = null;
   hideFolderHero();
 
   const staticTitles = {
@@ -1960,9 +2004,13 @@ async function loadSetsView() {
   const grid = document.getElementById('setsGrid');
   grid.innerHTML = loadingHTML();
   try {
-    const sets = await api('GET', '/api/sets');
-    document.getElementById('cnt-sets').textContent = sets.length;
-    if (!sets.length) {
+    const [sets, filesets] = await Promise.all([
+      api('GET', '/api/sets'),
+      api('GET', '/api/filesets'),
+    ]);
+    document.getElementById('cnt-sets').textContent = sets.length + filesets.length;
+
+    if (!sets.length && !filesets.length) {
       grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
         <div class="empty-icon">◈</div>
         <div class="empty-title">${t('set_empty_title')}</div>
@@ -1970,22 +2018,47 @@ async function loadSetsView() {
       </div>`;
       return;
     }
-    grid.innerHTML = sets.map(s => {
-      const img = `<img src="/api/folder-image?folder=${encodeURIComponent(s.folder)}"
-        style="width:100%;height:100%;object-fit:cover;display:block;filter:brightness(0.8)"
-        onerror="this.style.display='none'">`;
-      return `
-      <div class="set-card" onclick="openSetFolder('${esc(s.folder)}', '${esc(s.display_name)}')">
-        <div class="set-card-hero">
-          ${img}
-          <div class="set-card-overlay">
-            <div class="set-card-name">${esc(s.display_name)}</div>
-            <div class="set-card-count">${s.file_count} Dateien</div>
-          </div>
-        </div>
-        ${s.description ? `<div class="set-card-body"><div class="set-card-desc">${esc(s.description)}</div></div>` : ''}
+
+    let html = '';
+
+    if (sets.length) {
+      html += `<div style="grid-column:1/-1;margin-bottom:4px">
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase">${t('nav_sets')}</div>
       </div>`;
-    }).join('');
+      html += sets.map(s => {
+        const img = `<img src="/api/folder-image?folder=${encodeURIComponent(s.folder)}"
+          style="width:100%;height:100%;object-fit:cover;display:block;filter:brightness(0.8)"
+          onerror="this.style.display='none'">`;
+        return `
+        <div class="set-card" onclick="openSetFolder('${esc(s.folder)}', '${esc(s.display_name)}')">
+          <div class="set-card-hero">${img}
+            <div class="set-card-overlay">
+              <div class="set-card-name">${esc(s.display_name)}</div>
+              <div class="set-card-count">${s.file_count} Dateien</div>
+            </div>
+          </div>
+          ${s.description ? `<div class="set-card-body"><div class="set-card-desc">${esc(s.description)}</div></div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    if (filesets.length) {
+      html += `<div style="grid-column:1/-1;margin-top:${sets.length ? '24px' : '0'};margin-bottom:4px">
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase">${t('nav_filesets_section')}</div>
+      </div>`;
+      html += filesets.map(s => `
+        <div class="set-card" onclick="openFileset(${s.id}, '${esc(s.name)}')">
+          <div class="set-card-hero" style="background:linear-gradient(135deg,var(--surface2),var(--surface3))">
+            <div class="set-card-overlay" style="top:0;background:linear-gradient(rgba(0,0,0,0.1),rgba(0,0,0,0.75));display:flex;flex-direction:column;justify-content:flex-end">
+              <div class="set-card-name">${esc(s.name)}</div>
+              <div class="set-card-count">${s.file_count} Dateien</div>
+            </div>
+          </div>
+          ${s.description ? `<div class="set-card-body"><div class="set-card-desc">${esc(s.description)}</div></div>` : ''}
+        </div>`).join('');
+    }
+
+    grid.innerHTML = html;
   } catch(e) { grid.innerHTML = errorHTML(); }
 }
 
@@ -2061,9 +2134,114 @@ async function deleteCurrentSet(fromEditor = false) {
 
 async function loadSetsCount() {
   try {
-    const sets = await api('GET', '/api/sets');
-    document.getElementById('cnt-sets').textContent = sets.length;
+    const [sets, filesets] = await Promise.all([api('GET', '/api/sets'), api('GET', '/api/filesets')]);
+    document.getElementById('cnt-sets').textContent = sets.length + filesets.length;
   } catch(e) {}
+}
+
+// ─── FILE SETS ────────────────────────────────────────────────────────────────
+async function loadFileSetFiles(setId) {
+  const grid = document.getElementById('filesGrid');
+  const lst  = document.getElementById('filesList');
+  grid.innerHTML = lst.innerHTML = loadingHTML();
+  try {
+    files = await api('GET', `/api/filesets/${setId}/files`);
+    render();
+  } catch(e) {
+    console.error('fileset load error', e);
+    grid.innerHTML = lst.innerHTML = errorHTML();
+  }
+}
+
+function openFileset(id, name) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  activeNav       = 'fileset';
+  activeFileSetId = id;
+  activeFolder    = null;
+  hideFolderHero();
+  hideSetBars();
+  document.getElementById('pageTitle').innerHTML = `<span>${esc(name)}</span>`;
+  document.getElementById('setsGrid').classList.add('hidden');
+  document.getElementById('filesGrid').classList.remove('hidden');
+  document.querySelector('.filter-row').classList.add('hidden');
+  document.getElementById('resultInfo').classList.remove('hidden');
+  document.getElementById('sortSelect').closest('.view-controls').querySelector('.view-toggle').style.display = '';
+  loadFileSetFiles(id);
+}
+
+let _filesetPickerFileId = null;
+
+async function openFilesetPicker(fileId) {
+  _filesetPickerFileId = fileId;
+  const overlay = document.getElementById('filesetPickerOverlay');
+  const list    = document.getElementById('filesetPickerList');
+  document.getElementById('filesetNewName').value = '';
+  list.innerHTML = `<div style="padding:8px 0;color:var(--text-muted);font-size:12px">${t('loading_files')}</div>`;
+  overlay.classList.remove('hidden');
+  try {
+    const [allSets, fileSets] = await Promise.all([
+      api('GET', '/api/filesets'),
+      api('GET', `/api/files/${fileId}/filesets`),
+    ]);
+    const inSetIds = new Set(fileSets.map(s => s.id));
+    if (!allSets.length) {
+      list.innerHTML = `<div style="padding:8px 0;color:var(--text-muted);font-size:12px">${t('fileset_empty')}</div>`;
+      return;
+    }
+    list.innerHTML = allSets.map(s => {
+      const inSet = inSetIds.has(s.id);
+      return `<div class="fileset-row">
+        <div class="fileset-row-name">${esc(s.name)}</div>
+        ${inSet
+          ? `<button class="btn btn-ghost" style="font-size:11px;color:var(--accent)"
+                     onclick="removeFromFilesetPicker(${s.id}, ${fileId})">${t('fileset_in_set')}</button>`
+          : `<button class="btn btn-ghost" style="font-size:11px"
+                     onclick="addToFilesetPicker(${s.id}, ${fileId})">${t('fileset_add_btn')}</button>`
+        }
+      </div>`;
+    }).join('');
+  } catch(e) { list.innerHTML = errorHTML(); }
+}
+
+function closeFilesetPicker() {
+  document.getElementById('filesetPickerOverlay').classList.add('hidden');
+}
+
+async function addToFilesetPicker(setId, fileId) {
+  try {
+    await api('POST', `/api/filesets/${setId}/members`, { file_id: fileId });
+    showToast(t('toast_fileset_added'), '✓');
+    await openFilesetPicker(fileId);
+  } catch(e) { showToast(t('toast_fileset_error'), '✕'); }
+}
+
+async function removeFromFilesetPicker(setId, fileId) {
+  try {
+    await api('DELETE', `/api/filesets/${setId}/members/${fileId}`);
+    showToast(t('toast_fileset_removed'), '◈');
+    await openFilesetPicker(fileId);
+  } catch(e) { showToast(t('toast_fileset_error'), '✕'); }
+}
+
+async function removeFromFileset(setId, fileId) {
+  try {
+    await api('DELETE', `/api/filesets/${setId}/members/${fileId}`);
+    showToast(t('toast_fileset_removed'), '◈');
+    if (activeNav === 'fileset' && activeFileSetId === setId) loadFiles();
+  } catch(e) { showToast(t('toast_fileset_error'), '✕'); }
+}
+
+async function createAndAddToFileset() {
+  const name   = document.getElementById('filesetNewName').value.trim();
+  const fileId = _filesetPickerFileId;
+  if (!name) return;
+  try {
+    const newSet = await api('POST', '/api/filesets', { name, description: '' });
+    await api('POST', `/api/filesets/${newSet.id}/members`, { file_id: fileId });
+    showToast(t('toast_fileset_created'), '✓');
+    await loadSetsCount();
+    await openFilesetPicker(fileId);
+  } catch(e) { showToast(t('toast_fileset_error'), '✕'); }
 }
 
 // ─── CATEGORIES ───────────────────────────────────────────────────────────────
@@ -2179,11 +2357,11 @@ function render() {
     return;
   }
 
-  grid.innerHTML = files.map(f => cardHTML(f, q)).join('');
+  grid.innerHTML = files.map(f => cardHTML(f, q, activeFileSetId)).join('');
   lst.innerHTML  = files.map(f => listItemHTML(f, q)).join('');
 }
 
-function cardHTML(f, q) {
+function cardHTML(f, q, fileSetId = null) {
   const hasThumb = !!f.thumbnail_path;
   const thumbContent = hasThumb
     ? `<img src="/api/thumbnails/${f.id}" alt="${esc(f.name)}"
@@ -2199,6 +2377,7 @@ function cardHTML(f, q) {
     <div class="card-thumb ${hasThumb ? 'has-thumb' : ''}" onclick="${zoomClick}">
       ${thumbContent}
       ${f.missing ? `<div class="missing-badge">${t('missing_badge')}</div>` : ''}
+      ${fileSetId ? `<button class="card-remove-set" onclick="event.stopPropagation();removeFromFileset(${fileSetId},${f.id})">${t('btn_remove_from_set')}</button>` : ''}
       <svg class="thumb-placeholder" ${placeholderStyle} viewBox="0 0 80 80" fill="none">
         <rect x="10" y="20" width="60" height="45" rx="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
         <text x="40" y="48" text-anchor="middle" font-size="26" fill="currentColor" opacity="0.4">◈</text>
@@ -2256,6 +2435,7 @@ function setView(v) {
   document.getElementById('filesList').classList.toggle('hidden', isSets || v !== 'list');
   document.getElementById('gridBtn').classList.toggle('active', v === 'grid');
   document.getElementById('listBtn').classList.toggle('active', v === 'list');
+  if (activeNav === 'fileset') document.querySelector('.filter-row').classList.add('hidden');
 }
 
 // ─── FAVORITE ─────────────────────────────────────────────────────────────────
@@ -2443,6 +2623,7 @@ async function openModal(id) {
         ${f.favorite ? t('btn_favorite_remove') : t('btn_favorite_add')}
       </button>
       <button class="btn btn-ghost" onclick="enterEditMode(currentOpenFile)">${t('btn_edit')}</button>
+      <button class="btn btn-ghost" onclick="openFilesetPicker(${f.id})">${t('btn_add_to_set')}</button>
       ${f.folder ? `<button class="btn btn-ghost" onclick="filterByFolder('${esc(f.folder)}')">${t('btn_filter_folder')}</button>` : ''}
       ${['STL','OBJ','3MF'].includes(f.format) ? `<button class="btn btn-ghost" onclick="open3DViewer(${f.id},'${f.format}','${esc(f.name)}')">${t('btn_view_3d')}</button>` : ''}
       <select class="status-select" onchange="setStatus(${f.id}, this.value)">
@@ -2696,7 +2877,7 @@ function closeLightbox() {
 
 // ─── KEYBOARD ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeLocateDialog(); closeSetEditor(); closeModal(); }
+  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeLocateDialog(); closeSetEditor(); closeFilesetPicker(); closeModal(); }
   if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
     e.preventDefault();
     document.getElementById('searchInput').focus();

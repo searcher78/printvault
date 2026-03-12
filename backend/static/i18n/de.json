@@ -130,5 +130,22 @@
   "set_empty_sub": "Öffne einen Ordner und speichere ihn als Set",
   "toast_set_saved": "✓ Set gespeichert",
   "toast_set_deleted": "Set gelöscht",
-  "toast_set_error": "Fehler beim Speichern des Sets"
+  "toast_set_error": "Fehler beim Speichern des Sets",
+  "nav_filesets_section": "Datei-Sets",
+  "fileset_add_title": "In Set hinzufügen",
+  "fileset_in_set": "✓ Im Set",
+  "fileset_add_btn": "+ Hinzufügen",
+  "fileset_remove_btn": "✕ Entfernen",
+  "fileset_new_label": "Neues Set erstellen",
+  "fileset_new_placeholder": "Set-Name…",
+  "fileset_create_btn": "Erstellen & Hinzufügen",
+  "fileset_empty": "Noch keine Datei-Sets",
+  "fileset_no_files": "Dieses Set ist leer",
+  "btn_add_to_set": "◈ In Set",
+  "btn_remove_from_set": "✕ Aus Set",
+  "toast_fileset_added": "✓ Zum Set hinzugefügt",
+  "toast_fileset_removed": "Aus Set entfernt",
+  "toast_fileset_created": "✓ Set erstellt",
+  "toast_fileset_deleted": "Set gelöscht",
+  "toast_fileset_error": "Fehler"
 }

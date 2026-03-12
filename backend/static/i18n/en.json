@@ -130,5 +130,22 @@
   "set_empty_sub": "Open a folder and save it as a set",
   "toast_set_saved": "✓ Set saved",
   "toast_set_deleted": "Set deleted",
-  "toast_set_error": "Error saving set"
+  "toast_set_error": "Error saving set",
+  "nav_filesets_section": "File Sets",
+  "fileset_add_title": "Add to set",
+  "fileset_in_set": "✓ In set",
+  "fileset_add_btn": "+ Add",
+  "fileset_remove_btn": "✕ Remove",
+  "fileset_new_label": "Create new set",
+  "fileset_new_placeholder": "Set name…",
+  "fileset_create_btn": "Create & add",
+  "fileset_empty": "No file sets yet",
+  "fileset_no_files": "This set is empty",
+  "btn_add_to_set": "◈ Add to set",
+  "btn_remove_from_set": "✕ Remove from set",
+  "toast_fileset_added": "✓ Added to set",
+  "toast_fileset_removed": "Removed from set",
+  "toast_fileset_created": "✓ Set created",
+  "toast_fileset_deleted": "Set deleted",
+  "toast_fileset_error": "Error"
 }

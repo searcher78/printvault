@@ -79,6 +79,28 @@ class PrintFileUpdate(SQLModel):
     print_status: Optional[str] = None
 
 
+class FileSet(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    description: str = ""
+    date_created: datetime = Field(default_factory=datetime.utcnow)
+
+
+class FileSetMember(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    set_id: int = Field(index=True)
+    file_id: int = Field(index=True)
+
+
+class FileSetCreate(SQLModel):
+    name: str
+    description: str = ""
+
+
+class FileSetMemberAdd(SQLModel):
+    file_id: int
+
+
 class FolderSet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     folder: str = Field(unique=True, index=True)  # relative path from FILES_DIR
