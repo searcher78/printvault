@@ -28,11 +28,14 @@ def _migrate() -> None:
     ]
     with engine.connect() as conn:
         existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(printfile)")}
+        ran_any = False
         for sql in migrations:
             col = sql.split("ADD COLUMN ")[1].split()[0]
             if col not in existing:
                 conn.exec_driver_sql(sql)
-        conn.exec_driver_sql("COMMIT")
+                ran_any = True
+        if ran_any:
+            conn.commit()
 
 
 def get_session():
