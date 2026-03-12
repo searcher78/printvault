@@ -1560,10 +1560,11 @@ let translations = {};
 async function loadI18n(lang) {
   try {
     const res = await fetch(`/static/i18n/${lang}.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} loading /static/i18n/${lang}.json`);
     translations = await res.json();
     currentLang = lang;
     localStorage.setItem('lang', lang);
-  } catch(e) { console.error('i18n load error', e); }
+  } catch(e) { console.error('i18n load error:', e); }
 }
 
 function t(key, vars) {
@@ -1592,7 +1593,7 @@ function applyI18n() {
 }
 
 async function switchLang(lang) {
-  if (lang === currentLang) return;
+  if (lang === currentLang && Object.keys(translations).length > 0) return;
   await loadI18n(lang);
   applyI18n();
   // re-render dynamic content that depends on translations
@@ -1603,6 +1604,7 @@ async function switchLang(lang) {
   loadFolders();
   loadFiles();
   loadStats();
+  loadSetsCount();
 }
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
