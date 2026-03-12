@@ -110,6 +110,7 @@ def _process_file(file_id: int) -> None:
 
 def reprocess_thumbnails() -> None:
     """Re-render thumbnails for all files (force, regardless of existing thumbnail)."""
+    import gc
     from services.thumbnail import generate_thumbnail
 
     with Session(engine) as session:
@@ -127,6 +128,7 @@ def reprocess_thumbnails() -> None:
                 file.thumbnail_path = thumbnail_path
                 session.add(file)
                 session.commit()
+        gc.collect()  # Speicher nach jedem Render freigeben
 
 
 def check_missing() -> dict:

@@ -89,25 +89,24 @@ def _render_raycast(mesh) -> "PIL.Image.Image":
     import trimesh
     from PIL import Image
 
-    SS = 2  # supersampling factor
     out_w, out_h = THUMBNAIL_SIZE
-    W, H = out_w * SS, out_h * SS
+    W, H = out_w, out_h
 
     # ── Camera ────────────────────────────────────────────────────────────────
-    cam_dir = np.array([1.0, 0.75, 0.55], dtype=np.float64)
+    cam_dir = np.array([1.0, 0.75, 0.55], dtype=np.float32)
     cam_dir /= np.linalg.norm(cam_dir)
     forward = -cam_dir
 
-    world_up = np.array([0.0, 0.0, 1.0], dtype=np.float64)
-    right = np.cross(forward, world_up)
+    world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    right = np.cross(forward, world_up).astype(np.float32)
     right /= np.linalg.norm(right)
-    up = np.cross(right, forward)
+    up = np.cross(right, forward).astype(np.float32)
 
     # ── Ray grid (orthographic) ───────────────────────────────────────────────
     # mesh diagonal = 1 after normalisation; scale 0.72 → fills ~72% of frame
     scale = 0.72
-    xs = np.linspace(-scale, scale, W, dtype=np.float64)
-    ys = np.linspace( scale, -scale, H, dtype=np.float64)
+    xs = np.linspace(-scale, scale, W, dtype=np.float32)
+    ys = np.linspace( scale, -scale, H, dtype=np.float32)
     xx, yy = np.meshgrid(xs, ys)  # (H, W)
 
     cam_pos = cam_dir * 5.0
@@ -116,8 +115,8 @@ def _render_raycast(mesh) -> "PIL.Image.Image":
         cam_pos
         + xx[..., np.newaxis] * right
         + yy[..., np.newaxis] * up
-    ).reshape(-1, 3)  # (H*W, 3)
-    directions = np.broadcast_to(forward.reshape(1, 3), (W * H, 3)).copy()
+    ).reshape(-1, 3).astype(np.float64)  # trimesh expects float64
+    directions = np.broadcast_to(forward.astype(np.float64).reshape(1, 3), (W * H, 3)).copy()
 
     # ── Intersection ─────────────────────────────────────────────────────────
     intersector = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
@@ -180,7 +179,7 @@ def _render_raycast(mesh) -> "PIL.Image.Image":
         pixels[index_ray] = np.clip(color, 0, 1)
 
     img_arr = np.clip(pixels.reshape(H, W, 3) * 255, 0, 255).astype(np.uint8)
-    return Image.fromarray(img_arr).resize(THUMBNAIL_SIZE, Image.LANCZOS)
+    return Image.fromarray(img_arr)
 
 
 # ── Matplotlib fallback ───────────────────────────────────────────────────────
