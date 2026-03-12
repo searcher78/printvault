@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -13,6 +14,17 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_FORMATS = {".stl": "STL", ".3mf": "3MF", ".obj": "OBJ", ".lys": "LYS"}
 FILES_DIR = os.getenv("FILES_DIR", "/files")
+
+
+def compute_hash(path: str, chunk: int = 65536) -> str | None:
+    try:
+        h = hashlib.md5()
+        with open(path, "rb") as f:
+            while data := f.read(chunk):
+                h.update(data)
+        return h.hexdigest()
+    except OSError:
+        return None
 
 
 def run_scan() -> None:
@@ -40,6 +52,7 @@ def run_scan() -> None:
                 path=str_path,
                 format=SUPPORTED_FORMATS[path.suffix.lower()],
                 size_bytes=path.stat().st_size,
+                file_hash=compute_hash(str_path),
             )
             session.add(file)
             session.flush()  # get auto-assigned id
@@ -52,6 +65,7 @@ def run_scan() -> None:
     for file_id in new_ids:
         _process_file(file_id)
 
+    check_missing()
     _retry_ai_unprocessed()
 
 
@@ -105,6 +119,26 @@ def reprocess_thumbnails() -> None:
                 file.thumbnail_path = thumbnail_path
                 session.add(file)
                 session.commit()
+
+
+def check_missing() -> dict:
+    """Check all DB files against the filesystem and update the missing flag."""
+    found = missing = 0
+    with Session(engine) as session:
+        all_files = session.exec(select(PrintFile)).all()
+        for f in all_files:
+            exists = os.path.exists(f.path)
+            if f.missing == (not exists):
+                continue  # already correct
+            f.missing = not exists
+            if not exists:
+                missing += 1
+            else:
+                found += 1
+            session.add(f)
+        session.commit()
+    logger.info(f"check_missing: {missing} missing, {found} re-found")
+    return {"missing": missing, "re_found": found}
 
 
 def _retry_ai_unprocessed() -> None:

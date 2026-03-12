@@ -101,6 +101,7 @@ def list_files(
     favorite: Optional[bool] = None,
     status: Optional[str] = None,
     folder: Optional[str] = None,
+    missing: Optional[bool] = None,
     sort: str = "date",
     order: str = "desc",
     limit: int = Query(default=50, le=200),
@@ -126,6 +127,8 @@ def list_files(
         files_dir = os.getenv("FILES_DIR", "/files")
         folder_abs = os.path.join(files_dir, folder)
         query = query.where(PrintFile.path.like(folder_abs + "/%"))
+    if missing is not None:
+        query = query.where(PrintFile.missing == missing)
 
     sort_col = {
         "date": PrintFile.date_added,
@@ -214,4 +217,5 @@ def get_stats(session: Session = Depends(get_session)):
         "ai_processed": sum(1 for f in files if f.ai_processed),
         "favorites": sum(1 for f in files if f.favorite),
         "printed": sum(1 for f in files if f.print_status == "printed"),
+        "missing": sum(1 for f in files if f.missing),
     }

@@ -1153,6 +1153,49 @@
   }
   .edit-textarea:focus { border-color: var(--border-accent); }
 
+  /* MISSING FILE */
+  .missing-badge {
+    position: absolute; top: 6px; left: 6px; z-index: 2;
+    background: rgba(255,71,87,0.9); color: #fff;
+    font-size: 10px; font-family: 'Space Mono', monospace;
+    padding: 2px 6px; border-radius: 4px; pointer-events: none;
+  }
+  .card.is-missing { border-color: rgba(255,71,87,0.5); }
+  .missing-warning {
+    background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.4);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+    color: var(--red); font-size: 13px; display: flex; align-items: flex-start; gap: 10px;
+  }
+  /* LOCATE DIALOG */
+  .locate-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1200; backdrop-filter: blur(4px);
+  }
+  .locate-dialog {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px; width: 560px; max-width: 95vw;
+    max-height: 80vh; overflow-y: auto;
+  }
+  .locate-dialog h3 {
+    font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700;
+    margin-bottom: 16px; color: var(--accent);
+  }
+  .locate-candidate {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .locate-candidate:hover { border-color: var(--border-accent); }
+  .locate-path {
+    flex: 1; font-family: 'Space Mono', monospace; font-size: 11px;
+    color: var(--text-dim); word-break: break-all;
+  }
+  .locate-match-type {
+    font-size: 10px; color: var(--accent); white-space: nowrap;
+    font-family: 'Space Mono', monospace;
+  }
+
   /* RELATED FILES */
   .related-section { padding-top: 20px; border-top: 1px solid var(--border); }
   .related-label {
@@ -1200,6 +1243,11 @@
       <span class="icon">◷</span> <span data-i18n="nav_recent">Zuletzt hinzugefügt</span>
       <span class="count" id="cnt-rec">—</span>
     </div>
+    <div class="nav-item" id="navMissing" data-nav="missing" onclick="setNav(this,'missing')" style="display:none">
+      <span class="icon" style="color:var(--red)">⚠</span>
+      <span data-i18n="nav_missing" style="color:var(--red)">Fehlende Dateien</span>
+      <span class="count" id="cnt-missing" style="background:rgba(255,71,87,0.15);color:var(--red)">—</span>
+    </div>
     <div class="nav-section cat-nav-header" style="margin-top:12px">
       <span data-i18n="nav_categories">Kategorien</span>
       <button class="add-cat-btn" onclick="toggleAddCatForm()" data-i18n-title="nav_cat_new_title" title="Neue Kategorie">+</button>
@@ -1245,6 +1293,7 @@
              oninput="scheduleSearch()">
     </div>
     <div class="topbar-actions">
+      <button class="btn btn-ghost" id="checkMissingBtn" onclick="checkMissing()" data-i18n="btn_check_missing" style="display:none">⚠ Fehlende prüfen</button>
       <button class="btn btn-primary" id="scanBtn" onclick="triggerScan()" data-i18n="btn_scan">⬆ Scannen</button>
     </div>
   </div>
@@ -1388,6 +1437,17 @@
   <img id="lightboxImg" src="" alt="">
 </div>
 
+<!-- LOCATE DIALOG -->
+<div class="locate-overlay hidden" id="locateOverlay" onclick="if(event.target===this)closeLocateDialog()">
+  <div class="locate-dialog">
+    <h3 data-i18n="locate_title">Neue Position suchen</h3>
+    <div id="locateContent"></div>
+    <div style="margin-top:16px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeLocateDialog()" data-i18n="btn_cancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast">
   <span class="toast-icon" id="toastIcon">✓</span>
@@ -1511,6 +1571,11 @@ async function loadStats() {
       stats.total_files ? `${stats.ai_processed}/${stats.total_files}` : '0';
     const bytes = stats.total_size_bytes || 0;
     document.getElementById('stat-size').textContent = fmtBytes(bytes);
+    // Missing files
+    const missingCount = stats.missing ?? 0;
+    document.getElementById('cnt-missing').textContent = missingCount;
+    document.getElementById('navMissing').style.display = missingCount > 0 ? '' : 'none';
+    document.getElementById('checkMissingBtn').style.display = missingCount > 0 ? '' : 'none';
   } catch(e) { console.error('stats error', e); }
 }
 
@@ -1536,6 +1601,7 @@ function buildParams() {
   if (q) p.set('search', q);
 
   if (activeNav === 'fav') p.set('favorite', 'true');
+  else if (activeNav === 'missing') p.set('missing', 'true');
   else if (activeNav.startsWith('cat:')) p.set('category', activeNav.split(':')[1]);
   else if (activeNav === 'recent') { p.set('sort', 'date'); p.set('order', 'desc'); }
 
@@ -1558,9 +1624,10 @@ function setNav(el, nav) {
   hideFolderHero();
 
   const staticTitles = {
-    'all':    t('title_all'),
-    'fav':    t('title_favorites'),
-    'recent': t('title_recent'),
+    'all':     t('title_all'),
+    'fav':     t('title_favorites'),
+    'recent':  t('title_recent'),
+    'missing': `<span style="color:var(--red)">${t('nav_missing')}</span>`,
   };
   let title = staticTitles[nav];
   if (!title && nav.startsWith('cat:')) {
@@ -1872,9 +1939,10 @@ function cardHTML(f, q) {
     : `openModal(${f.id})`;
 
   return `
-  <div class="card" onclick="openModal(${f.id})">
+  <div class="card ${f.missing ? 'is-missing' : ''}" onclick="openModal(${f.id})">
     <div class="card-thumb ${hasThumb ? 'has-thumb' : ''}" onclick="${zoomClick}">
       ${thumbContent}
+      ${f.missing ? `<div class="missing-badge">${t('missing_badge')}</div>` : ''}
       <svg class="thumb-placeholder" ${placeholderStyle} viewBox="0 0 80 80" fill="none">
         <rect x="10" y="20" width="60" height="45" rx="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
         <text x="40" y="48" text-anchor="middle" font-size="26" fill="currentColor" opacity="0.4">◈</text>
@@ -1902,8 +1970,8 @@ function listItemHTML(f, q) {
     ? `<img src="/api/thumbnails/${f.id}" alt="" onerror="this.textContent='◈'; this.remove();">`
     : '◈';
   return `
-  <div class="list-item" onclick="openModal(${f.id})">
-    <div class="list-thumb">${thumbContent}</div>
+  <div class="list-item ${f.missing ? 'is-missing' : ''}" onclick="openModal(${f.id})" style="${f.missing ? 'border-color:rgba(255,71,87,0.5)' : ''}">
+    <div class="list-thumb" style="position:relative">${thumbContent}${f.missing ? `<div class="missing-badge" style="position:absolute;top:4px;left:4px">${t('missing_badge')}</div>` : ''}</div>
     <div class="list-info">
       <div class="list-title">${hl(esc(f.name), q)}</div>
       <div class="list-meta">
@@ -1947,6 +2015,61 @@ async function toggleFav(id, currentVal) {
 function downloadFile(id, name) {
   showToast(t('toast_download', {name}), '⬇');
   window.open(`/api/files/${id}/download`, '_blank');
+}
+
+// ─── MISSING FILE DETECTION ───────────────────────────────────────────────────
+async function checkMissing() {
+  const btn = document.getElementById('checkMissingBtn');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  try {
+    const result = await api('POST', '/api/scan/check-missing');
+    showToast(t('toast_check_missing', {missing: result.missing, found: result.found}), '✓');
+    await Promise.all([loadStats(), loadFiles()]);
+  } catch(e) {
+    showToast(t('toast_scan_error', {error: e.message}), '✕');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function locateFile(id) {
+  const overlay = document.getElementById('locateOverlay');
+  const content = document.getElementById('locateContent');
+  content.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted)">${t('locate_searching')}</div>`;
+  overlay.classList.remove('hidden');
+  try {
+    const result = await api('GET', `/api/files/${id}/locate`);
+    if (!result.candidates || !result.candidates.length) {
+      content.innerHTML = `<p style="color:var(--text-muted);text-align:center;padding:12px">${t('locate_none')}</p>`;
+      return;
+    }
+    content.innerHTML = result.candidates.map(c => `
+      <div class="locate-candidate">
+        <div>
+          <div class="locate-path">${esc(c.path)}</div>
+          <div class="locate-match-type">${c.match_type === 'name' ? t('locate_match_name') : t('locate_match_hash')}</div>
+        </div>
+        <button class="btn btn-primary" style="font-size:12px;padding:5px 10px;flex-shrink:0"
+                onclick="relinkFile(${id}, '${esc(c.path)}')">${t('locate_btn_relink')}</button>
+      </div>`).join('');
+  } catch(e) {
+    content.innerHTML = `<p style="color:var(--red);text-align:center;padding:12px">${t('locate_none')}</p>`;
+  }
+}
+
+async function relinkFile(id, path) {
+  try {
+    await api('POST', `/api/files/${id}/relink`, { new_path: path });
+    closeLocateDialog();
+    showToast(t('toast_relinked'), '✓');
+    await Promise.all([loadStats(), loadFiles()]);
+    openModal(id);
+  } catch(e) { showToast(t('toast_relink_error'), '✕'); }
+}
+
+function closeLocateDialog() {
+  document.getElementById('locateOverlay').classList.add('hidden');
 }
 
 // ─── SCAN ─────────────────────────────────────────────────────────────────────
@@ -2000,6 +2123,22 @@ async function openModal(id) {
       f.ai_processed ? `<span class="card-tag" style="background:rgba(0,212,170,0.1);color:var(--accent)">KI ✓</span>` : '',
     ].join('');
     document.getElementById('modalTags').innerHTML = tagsHtml;
+
+    // Missing warning
+    const existingWarning = document.getElementById('missingWarning');
+    if (existingWarning) existingWarning.remove();
+    if (f.missing) {
+      const warning = document.createElement('div');
+      warning.id = 'missingWarning';
+      warning.className = 'missing-warning';
+      warning.innerHTML = `<span style="font-size:18px;flex-shrink:0">⚠</span>
+        <div>
+          <div>${t('missing_warning')}</div>
+          <button class="btn btn-ghost" style="margin-top:8px;font-size:12px;padding:5px 12px"
+                  onclick="locateFile(${f.id})">${t('btn_locate')}</button>
+        </div>`;
+      document.getElementById('modalGrid').insertAdjacentElement('beforebegin', warning);
+    }
 
     // Detail grid
     const diffColor = { easy: '#00d4aa', medium: '#ffd32a', hard: '#ff4757' }[f.difficulty] || 'var(--text)';
@@ -2300,7 +2439,7 @@ function closeLightbox() {
 
 // ─── KEYBOARD ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeModal(); }
+  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeLocateDialog(); closeModal(); }
   if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
     e.preventDefault();
     document.getElementById('searchInput').focus();

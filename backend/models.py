@@ -20,6 +20,8 @@ class PrintFile(SQLModel, table=True):
     print_status: str = "unprinted"  # unprinted | printing | printed
     thumbnail_path: Optional[str] = None
     ai_processed: bool = False
+    file_hash: Optional[str] = None
+    missing: bool = False
     date_added: datetime = Field(default_factory=datetime.utcnow)
     date_modified: datetime = Field(default_factory=datetime.utcnow)
 
@@ -47,6 +49,8 @@ class PrintFileRead(SQLModel):
     print_status: str
     thumbnail_path: Optional[str]
     ai_processed: bool
+    file_hash: Optional[str]
+    missing: bool
     date_added: datetime
     date_modified: datetime
     folder: str = ""  # relative path within FILES_DIR

@@ -99,5 +99,19 @@
   "toast_cat_exists": "Kategorie existiert bereits",
   "toast_cat_required": "Schlüssel und Name erforderlich",
   "confirm_cat_delete": "Kategorie „{name}" löschen?\n\nDateien in dieser Kategorie bleiben erhalten, werden aber als unbekannte Kategorie angezeigt.",
-  "lang_switch_label": "Sprache"
+  "lang_switch_label": "Sprache",
+  "nav_missing": "Fehlende Dateien",
+  "missing_badge": "⚠ Fehlt",
+  "missing_warning": "Diese Datei wurde nicht gefunden. Sie wurde möglicherweise verschoben oder umbenannt.",
+  "btn_locate": "🔍 Neue Position suchen",
+  "locate_searching": "Suche…",
+  "locate_title": "Neue Position suchen",
+  "locate_none": "Keine Übereinstimmung gefunden. Datei möglicherweise gelöscht.",
+  "locate_match_name": "Namensübereinstimmung",
+  "locate_match_hash": "Inhaltsübereinstimmung",
+  "locate_btn_relink": "Verknüpfen",
+  "toast_relinked": "✓ Datei neu verknüpft",
+  "toast_relink_error": "Fehler beim Verknüpfen",
+  "toast_check_missing": "✓ Prüfung abgeschlossen – {missing} fehlend, {found} wiedergefunden",
+  "btn_check_missing": "⚠ Fehlende prüfen"
 }

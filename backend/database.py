@@ -17,6 +17,22 @@ def create_db_and_tables() -> None:
     with engine.connect() as conn:
         conn.exec_driver_sql("PRAGMA journal_mode=WAL")
     SQLModel.metadata.create_all(engine)
+    _migrate()
+
+
+def _migrate() -> None:
+    """Add new columns to existing tables without dropping data."""
+    migrations = [
+        "ALTER TABLE printfile ADD COLUMN file_hash TEXT",
+        "ALTER TABLE printfile ADD COLUMN missing INTEGER NOT NULL DEFAULT 0",
+    ]
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(printfile)")}
+        for sql in migrations:
+            col = sql.split("ADD COLUMN ")[1].split()[0]
+            if col not in existing:
+                conn.exec_driver_sql(sql)
+        conn.exec_driver_sql("COMMIT")
 
 
 def get_session():

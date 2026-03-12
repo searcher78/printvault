@@ -99,5 +99,19 @@
   "toast_cat_exists": "Category already exists",
   "toast_cat_required": "Key and name required",
   "confirm_cat_delete": "Delete category \"{name}\"?\n\nFiles in this category will be kept but shown as unknown category.",
-  "lang_switch_label": "Language"
+  "lang_switch_label": "Language",
+  "nav_missing": "Missing Files",
+  "missing_badge": "⚠ Missing",
+  "missing_warning": "This file could not be found. It may have been moved or renamed.",
+  "btn_locate": "🔍 Search new location",
+  "locate_searching": "Searching…",
+  "locate_title": "Search new location",
+  "locate_none": "No match found. File may have been deleted.",
+  "locate_match_name": "Name match",
+  "locate_match_hash": "Content match",
+  "locate_btn_relink": "Relink",
+  "toast_relinked": "✓ File relinked",
+  "toast_relink_error": "Error relinking file",
+  "toast_check_missing": "✓ Check complete – {missing} missing, {found} re-found",
+  "btn_check_missing": "⚠ Check missing"
 }
