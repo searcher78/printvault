@@ -147,5 +147,17 @@
   "toast_fileset_removed": "Aus Set entfernt",
   "toast_fileset_created": "✓ Set erstellt",
   "toast_fileset_deleted": "Set gelöscht",
-  "toast_fileset_error": "Fehler"
+  "toast_fileset_error": "Fehler",
+  "btn_import": "⬆ Import",
+  "import_title": "Archiv importieren",
+  "import_drop_hint": "ZIP, RAR, 7Z, TAR.GZ hier ablegen oder klicken",
+  "import_accepted": "Unterstützt: .zip .rar .7z .tar .tar.gz .tar.bz2 .tar.xz",
+  "import_uploading": "Lade hoch…",
+  "import_processing": "Wird verarbeitet…",
+  "import_btn_start": "Importieren",
+  "import_result": "{imported} Dateien importiert, {skipped} übersprungen",
+  "import_none_found": "Keine 3D-Dateien im Archiv gefunden",
+  "import_error": "Fehler beim Import: {error}",
+  "import_errors_detail": "{n} Fehler beim Einlesen",
+  "toast_import_done": "✓ Import abgeschlossen: {imported} neue Dateien"
 }

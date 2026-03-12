@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from database import create_db_and_tables
-from routers import files, locate, rename, scan, settings, sets
+from routers import files, import_archive, locate, rename, scan, settings, sets
 from services.watcher import start_watcher, stop_watcher
 
 logging.basicConfig(
@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="PrintVault", version="0.1.0", lifespan=lifespan)
 
 app.include_router(files.router, prefix="/api")
+app.include_router(import_archive.router, prefix="/api")
 app.include_router(locate.router, prefix="/api")
 app.include_router(rename.router, prefix="/api")
 app.include_router(scan.router, prefix="/api")

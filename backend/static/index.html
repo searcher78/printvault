@@ -1220,6 +1220,31 @@
 
   .hidden { display: none !important; }
 
+  /* IMPORT DIALOG */
+  .import-drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    margin-top: 14px;
+  }
+  .import-drop-zone:hover, .import-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .import-drop-icon { font-size: 36px; margin-bottom: 10px; }
+  .import-drop-hint { font-size: 14px; color: var(--text-dim); margin-bottom: 6px; }
+  .import-drop-accepted { font-size: 11px; color: var(--text-muted); font-family: 'Space Mono', monospace; }
+  .import-progress-bar {
+    height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden;
+  }
+  .import-progress-fill {
+    height: 100%; width: 0; background: var(--accent);
+    transition: width 0.2s; border-radius: 3px;
+  }
+
   /* FILESET PICKER */
   .fileset-row {
     display: flex; align-items: center; gap: 10px;
@@ -1370,6 +1395,7 @@
     </div>
     <div class="topbar-actions">
       <button class="btn btn-ghost" id="checkMissingBtn" onclick="checkMissing()" data-i18n="btn_check_missing" style="display:none">⚠ Fehlende prüfen</button>
+      <button class="btn btn-ghost" onclick="openImportDialog()" data-i18n="btn_import">⬆ Import</button>
       <button class="btn btn-primary" id="scanBtn" onclick="triggerScan()" data-i18n="btn_scan">⬆ Scannen</button>
     </div>
   </div>
@@ -1580,6 +1606,35 @@
     <div id="locateContent"></div>
     <div style="margin-top:16px;text-align:right">
       <button class="btn btn-ghost" onclick="closeLocateDialog()" data-i18n="btn_cancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT DIALOG -->
+<div class="locate-overlay hidden" id="importOverlay" onclick="if(event.target===this)closeImportDialog()">
+  <div class="locate-dialog" style="width:500px">
+    <h3 data-i18n="import_title">Archiv importieren</h3>
+    <div id="importDropZone" class="import-drop-zone"
+         onclick="document.getElementById('importFileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="event.preventDefault();this.classList.remove('drag-over');handleImportDrop(event)">
+      <div class="import-drop-icon">📦</div>
+      <div class="import-drop-hint" data-i18n="import_drop_hint">ZIP, RAR, 7Z, TAR.GZ hier ablegen oder klicken</div>
+      <div class="import-drop-accepted" data-i18n="import_accepted">.zip .rar .7z .tar .tar.gz .tar.bz2 .tar.xz</div>
+      <input type="file" id="importFileInput" style="display:none"
+             accept=".zip,.rar,.7z,.tar,.gz,.bz2,.xz"
+             onchange="handleImportFileSelect(this)">
+    </div>
+    <div id="importSelectedFile" style="display:none;margin-top:10px;font-size:13px;color:var(--text-dim);word-break:break-all"></div>
+    <div id="importProgress" style="display:none;margin-top:12px">
+      <div class="import-progress-bar"><div id="importProgressFill" class="import-progress-fill"></div></div>
+      <div id="importProgressLabel" style="margin-top:6px;font-size:12px;color:var(--text-muted);font-family:'Space Mono',monospace"></div>
+    </div>
+    <div id="importResult" style="display:none;margin-top:12px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn btn-ghost" onclick="closeImportDialog()" data-i18n="btn_cancel">Abbrechen</button>
+      <button class="btn btn-primary" id="importStartBtn" onclick="startImport()" disabled data-i18n="import_btn_start">Importieren</button>
     </div>
   </div>
 </div>
@@ -2244,6 +2299,106 @@ async function createAndAddToFileset() {
   } catch(e) { showToast(t('toast_fileset_error'), '✕'); }
 }
 
+// ─── ARCHIVE IMPORT ───────────────────────────────────────────────────────────
+let _importFile = null;
+
+function openImportDialog() {
+  _importFile = null;
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importSelectedFile').style.display = 'none';
+  document.getElementById('importProgress').style.display = 'none';
+  document.getElementById('importResult').style.display = 'none';
+  document.getElementById('importStartBtn').disabled = true;
+  document.getElementById('importOverlay').classList.remove('hidden');
+}
+
+function closeImportDialog() {
+  document.getElementById('importOverlay').classList.add('hidden');
+}
+
+function handleImportDrop(event) {
+  const file = event.dataTransfer.files[0];
+  if (file) _setImportFile(file);
+}
+
+function handleImportFileSelect(input) {
+  if (input.files[0]) _setImportFile(input.files[0]);
+}
+
+function _setImportFile(file) {
+  _importFile = file;
+  const info = document.getElementById('importSelectedFile');
+  info.textContent = `📦 ${file.name}  (${fmtBytes(file.size)})`;
+  info.style.display = 'block';
+  document.getElementById('importResult').style.display = 'none';
+  document.getElementById('importProgress').style.display = 'none';
+  document.getElementById('importStartBtn').disabled = false;
+}
+
+function startImport() {
+  if (!_importFile) return;
+
+  const btn      = document.getElementById('importStartBtn');
+  const progress = document.getElementById('importProgress');
+  const fill     = document.getElementById('importProgressFill');
+  const label    = document.getElementById('importProgressLabel');
+  const result   = document.getElementById('importResult');
+
+  btn.disabled = true;
+  progress.style.display = 'block';
+  result.style.display = 'none';
+  fill.style.width = '0%';
+  label.textContent = t('import_uploading');
+
+  const formData = new FormData();
+  formData.append('file', _importFile);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/import');
+
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 90);
+      fill.style.width = pct + '%';
+    }
+  };
+
+  xhr.onload = async () => {
+    fill.style.width = '100%';
+    label.textContent = t('import_processing');
+    result.style.display = 'block';
+
+    if (xhr.status === 200) {
+      const data = JSON.parse(xhr.responseText);
+      const msg = data.imported === 0 && data.skipped === 0
+        ? t('import_none_found')
+        : t('import_result', {imported: data.imported, skipped: data.skipped});
+      const errLine = data.errors?.length
+        ? `<div style="margin-top:6px;font-size:11px;color:var(--red)">${t('import_errors_detail', {n: data.errors.length})}</div>`
+        : '';
+      result.innerHTML = `<div style="color:var(--accent);font-size:13px">✓ ${msg}</div>${errLine}`;
+      if (data.imported > 0) {
+        showToast(t('toast_import_done', {imported: data.imported}), '✓');
+        await Promise.all([loadStats(), loadFiles()]);
+      }
+    } else {
+      let detail = '';
+      try { detail = JSON.parse(xhr.responseText).detail || ''; } catch(e) {}
+      result.innerHTML = `<div style="color:var(--red);font-size:13px">${t('import_error', {error: detail || xhr.status})}</div>`;
+    }
+    btn.disabled = false;
+    label.textContent = '';
+  };
+
+  xhr.onerror = () => {
+    result.style.display = 'block';
+    result.innerHTML = `<div style="color:var(--red);font-size:13px">${t('import_error', {error: 'Netzwerkfehler'})}</div>`;
+    btn.disabled = false;
+  };
+
+  xhr.send(formData);
+}
+
 // ─── CATEGORIES ───────────────────────────────────────────────────────────────
 async function loadCategories() {
   try {
@@ -2877,7 +3032,7 @@ function closeLightbox() {
 
 // ─── KEYBOARD ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeLocateDialog(); closeSetEditor(); closeFilesetPicker(); closeModal(); }
+  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeLocateDialog(); closeSetEditor(); closeFilesetPicker(); closeImportDialog(); closeModal(); }
   if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
     e.preventDefault();
     document.getElementById('searchInput').focus();

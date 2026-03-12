@@ -13,7 +13,8 @@ from models import PrintFile
 logger = logging.getLogger(__name__)
 
 SUPPORTED_FORMATS = {".stl": "STL", ".3mf": "3MF", ".obj": "OBJ", ".lys": "LYS"}
-FILES_DIR = os.getenv("FILES_DIR", "/files")
+FILES_DIR  = os.getenv("FILES_DIR",  "/files")
+IMPORT_DIR = os.getenv("IMPORT_DIR", "")
 
 
 def compute_hash(path: str, chunk: int = 65536) -> str | None:
@@ -30,9 +31,15 @@ def compute_hash(path: str, chunk: int = 65536) -> str | None:
 def run_scan() -> None:
     """Scan FILES_DIR for new 3D print files, generate thumbnails and AI-tag them."""
     logger.info(f"Scan started: {FILES_DIR}")
-    files_dir = Path(FILES_DIR)
-    if not files_dir.exists():
-        logger.warning(f"Files directory does not exist: {FILES_DIR}")
+    scan_dirs: list[Path] = []
+    for d in [FILES_DIR, IMPORT_DIR]:
+        if d:
+            p = Path(d)
+            if p.exists() and p not in scan_dirs:
+                scan_dirs.append(p)
+
+    if not scan_dirs:
+        logger.warning("Keine scan-fähigen Verzeichnisse gefunden")
         return
 
     new_ids: list[int] = []
@@ -40,23 +47,24 @@ def run_scan() -> None:
     with Session(engine) as session:
         existing_paths = {f.path for f in session.exec(select(PrintFile)).all()}
 
-        for path in files_dir.rglob("*"):
-            if path.suffix.lower() not in SUPPORTED_FORMATS:
-                continue
-            str_path = str(path)
-            if str_path in existing_paths:
-                continue
+        for scan_dir in scan_dirs:
+            for path in scan_dir.rglob("*"):
+                if path.suffix.lower() not in SUPPORTED_FORMATS:
+                    continue
+                str_path = str(path)
+                if str_path in existing_paths:
+                    continue
 
-            file = PrintFile(
-                name=path.stem,
-                path=str_path,
-                format=SUPPORTED_FORMATS[path.suffix.lower()],
-                size_bytes=path.stat().st_size,
-                file_hash=compute_hash(str_path),
-            )
-            session.add(file)
-            session.flush()  # get auto-assigned id
-            new_ids.append(file.id)
+                file = PrintFile(
+                    name=path.stem,
+                    path=str_path,
+                    format=SUPPORTED_FORMATS[path.suffix.lower()],
+                    size_bytes=path.stat().st_size,
+                    file_hash=compute_hash(str_path),
+                )
+                session.add(file)
+                session.flush()  # get auto-assigned id
+                new_ids.append(file.id)
 
         session.commit()
 
