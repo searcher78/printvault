@@ -130,6 +130,9 @@ def reprocess_thumbnails() -> None:
                 session.commit()
         gc.collect()  # Speicher nach jedem Render freigeben
 
+    logger.info("Reprocess complete – starting AI retry for unprocessed files")
+    _retry_ai_unprocessed()
+
 
 def check_missing() -> dict:
     """Check all DB files against the filesystem and update the missing flag."""

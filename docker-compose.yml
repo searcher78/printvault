@@ -7,12 +7,11 @@ services:
       - /var/home/carstenwiemann/Downloads:/files
       - ./data/db:/app/data/db
       - ./data/thumbnails:/app/data/thumbnails
-      - ./data/imported:/app/data/imported
     environment:
       - FILES_DIR=/files
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL}
       - OLLAMA_MODEL=${OLLAMA_MODEL}
       - THUMBNAIL_DIR=/app/data/thumbnails
       - DB_PATH=/app/data/db/printvault.db
-      - IMPORT_DIR=/app/data/imported
+      - IMPORT_DIR=/files/imported
     restart: unless-stopped

@@ -3090,12 +3090,12 @@ async function open3DViewer(fileId, format, name) {
     const scene  = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, W / H, 0.001, 100000);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const key  = new THREE.DirectionalLight(0xffffff, 1.0);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+    const key  = new THREE.DirectionalLight(0xffffff, 2.2);
     key.position.set(1, 2, 3); scene.add(key);
-    const fill = new THREE.DirectionalLight(0x00d4aa, 0.25);
+    const fill = new THREE.DirectionalLight(0x00d4aa, 0.35);
     fill.position.set(-2, 0.5, -1); scene.add(fill);
-    const back = new THREE.DirectionalLight(0xffffff, 0.15);
+    const back = new THREE.DirectionalLight(0xaaccff, 0.5);
     back.position.set(0, -1, -2); scene.add(back);
 
     const controls = new OrbitControls(camera, canvas);
@@ -3106,7 +3106,7 @@ async function open3DViewer(fileId, format, name) {
     };
 
     const url = `/api/files/${fileId}/download`;
-    const mat = new THREE.MeshStandardMaterial({ color: 0x00d4aa, roughness: 0.45, metalness: 0.1 });
+    const mat = new THREE.MeshStandardMaterial({ color: 0x00d4aa, roughness: 0.6, metalness: 0.0 });
     let root;
 
     if (format === 'STL') {

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 
@@ -7,10 +9,10 @@ from models import Settings
 router = APIRouter()
 
 DEFAULT_SETTINGS: dict[str, str] = {
-    "files_dir": "/files",
-    "ollama_base_url": "http://localhost:11434",
-    "ollama_model": "qwen2.5vl:7b",
-    "thumbnail_dir": "/app/data/thumbnails",
+    "files_dir": os.getenv("FILES_DIR", "/files"),
+    "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+    "ollama_model": os.getenv("OLLAMA_MODEL", "qwen2.5vl:7b"),
+    "thumbnail_dir": os.getenv("THUMBNAIL_DIR", "/app/data/thumbnails"),
     "auto_scan": "true",
 }
 

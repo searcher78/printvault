@@ -49,20 +49,13 @@ def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
         if mesh.scale > 0:
             mesh.apply_scale(1.0 / mesh.scale)
 
-        # Simplify very large meshes so BVH construction stays fast
-        if len(mesh.faces) > 150_000:
-            try:
-                mesh = mesh.simplify_quadric_decimation(150_000)
-            except Exception:
-                pass  # keep original if simplification fails
-
         os.makedirs(THUMBNAIL_DIR, exist_ok=True)
         out_path = os.path.join(THUMBNAIL_DIR, f"{file_id}.png")
 
         try:
-            img = _render_raycast(mesh)
+            img = _render_rasterize(mesh)
         except Exception as e:
-            logger.warning("Raycast renderer failed (%s), falling back to matplotlib", e)
+            logger.warning("Rasterizer failed (%s), falling back to matplotlib", e)
             img = _render_matplotlib(mesh)
 
         img.save(out_path)
@@ -74,23 +67,20 @@ def generate_thumbnail(file_path: str, file_id: int) -> Optional[str]:
         return None
 
 
-# ── Ray-cast renderer ─────────────────────────────────────────────────────────
+# ── Z-Buffer Rasterizer ───────────────────────────────────────────────────────
 
-def _render_raycast(mesh) -> "PIL.Image.Image":
+def _render_rasterize(mesh) -> "PIL.Image.Image":
     """
-    Software ray-caster with:
-    - Orthographic projection (consistent framing)
+    Software Z-buffer rasterizer:
+    - Orthographic projection (same camera as before)
     - Smooth Phong shading (barycentric vertex-normal interpolation)
-    - 3-point lighting: key + fill + rim
-    - Blinn-Phong specular highlights
+    - 3-point lighting: key + fill + rim + Blinn-Phong specular
     - Fresnel-like silhouette darkening
-    - 2× supersampling → LANCZOS downsample for anti-aliasing
+    - O(W*H) memory – no BVH, no ray arrays
     """
-    import trimesh
     from PIL import Image
 
-    out_w, out_h = THUMBNAIL_SIZE
-    W, H = out_w, out_h
+    W, H = THUMBNAIL_SIZE
 
     # ── Camera ────────────────────────────────────────────────────────────────
     cam_dir = np.array([1.0, 0.75, 0.55], dtype=np.float32)
@@ -102,90 +92,142 @@ def _render_raycast(mesh) -> "PIL.Image.Image":
     right /= np.linalg.norm(right)
     up = np.cross(right, forward).astype(np.float32)
 
-    # ── Ray grid (orthographic) ───────────────────────────────────────────────
-    # mesh diagonal = 1 after normalisation; scale 0.72 → fills ~72% of frame
-    scale = 0.72
-    xs = np.linspace(-scale, scale, W, dtype=np.float32)
-    ys = np.linspace( scale, -scale, H, dtype=np.float32)
-    xx, yy = np.meshgrid(xs, ys)  # (H, W)
-
     cam_pos = cam_dir * 5.0
-    # origins: camera plane translated by (right * x) + (up * y)
-    origins = (
-        cam_pos
-        + xx[..., np.newaxis] * right
-        + yy[..., np.newaxis] * up
-    ).reshape(-1, 3).astype(np.float64)  # trimesh expects float64
-    directions = np.broadcast_to(forward.astype(np.float64).reshape(1, 3), (W * H, 3)).copy()
 
-    # ── Intersection ─────────────────────────────────────────────────────────
-    intersector = trimesh.ray.ray_triangle.RayMeshIntersector(mesh)
-    locations, index_ray, index_tri = intersector.intersects_location(
-        origins, directions, multiple_hits=False
-    )
+    # ── Project all vertices to screen space ──────────────────────────────────
+    verts = mesh.vertices.astype(np.float32)
+    rel = verts - cam_pos         # (V, 3) – relative to camera
+    scale = 0.58
 
-    # ── Background ────────────────────────────────────────────────────────────
-    y_idx  = np.arange(H * W, dtype=np.float32) // W
-    y_frac = (y_idx / max(H - 1, 1)).reshape(-1, 1)
-    pixels = (_BG_TOP * (1.0 - y_frac) + _BG_BOT * y_frac).astype(np.float32)
+    sx =  (rel @ right) / scale   # (V,) in [-1, 1]
+    sy = -(rel @ up)    / scale   # (V,) in [-1, 1], flipped for image coords
+    sz =   rel @ (-forward)       # (V,) depth – larger = farther
 
-    # ── Shading ───────────────────────────────────────────────────────────────
-    if len(index_ray) > 0:
-        # Smooth normals: barycentric interpolation of vertex normals
-        triangles = mesh.triangles[index_tri]  # (N, 3, 3)
-        bary = trimesh.triangles.points_to_barycentric(triangles, locations)
+    px = (sx + 1.0) * 0.5 * W    # pixel x
+    py = (sy + 1.0) * 0.5 * H    # pixel y
 
-        face_verts = mesh.faces[index_tri]      # (N, 3)
-        vn = mesh.vertex_normals.astype(np.float32)  # (V, 3)
-        smooth_n = (
-            bary[:, 0:1] * vn[face_verts[:, 0]] +
-            bary[:, 1:2] * vn[face_verts[:, 1]] +
-            bary[:, 2:3] * vn[face_verts[:, 2]]
+    # ── Buffers ───────────────────────────────────────────────────────────────
+    z_buf     = np.full((H, W), np.inf, dtype=np.float32)
+    normal_buf = np.zeros((H, W, 3), dtype=np.float32)
+    hit_buf   = np.zeros((H, W), dtype=bool)
+
+    # Background gradient
+    y_frac = np.linspace(0, 1, H, dtype=np.float32)
+    bg_rows = _BG_TOP[np.newaxis, :] * (1.0 - y_frac[:, np.newaxis]) + \
+              _BG_BOT[np.newaxis, :] * y_frac[:, np.newaxis]          # (H, 3)
+    color_buf = np.broadcast_to(bg_rows[:, np.newaxis, :], (H, W, 3)).copy()
+
+    # ── Per-face screen coords ────────────────────────────────────────────────
+    faces = mesh.faces             # (F, 3)
+    vn    = mesh.vertex_normals.astype(np.float32)  # (V, 3)
+
+    i0, i1, i2 = faces[:, 0], faces[:, 1], faces[:, 2]
+    x0, y0_, z0 = px[i0], py[i0], sz[i0]
+    x1, y1_, z1 = px[i1], py[i1], sz[i1]
+    x2, y2_, z2 = px[i2], py[i2], sz[i2]
+
+    # Edge vectors for barycentric computation
+    dx10 = x1 - x0;  dy10 = y1_ - y0_
+    dx20 = x2 - x0;  dy20 = y2_ - y0_
+
+    # Signed area (positive = front-facing in our coord system)
+    area2 = dx10 * dy20 - dy10 * dx20  # (F,)
+
+    # ── Rasterize each face ───────────────────────────────────────────────────
+    for fi in range(len(faces)):
+        a2 = area2[fi]
+        if abs(a2) < 1e-6:
+            continue
+
+        xmin = max(0,     int(min(x0[fi], x1[fi], x2[fi])))
+        xmax = min(W - 1, int(max(x0[fi], x1[fi], x2[fi])) + 1)
+        ymin = max(0,     int(min(y0_[fi], y1_[fi], y2_[fi])))
+        ymax = min(H - 1, int(max(y0_[fi], y1_[fi], y2_[fi])) + 1)
+
+        if xmax < xmin or ymax < ymin:
+            continue
+
+        # Pixel-centre coordinates for this bounding box
+        xs = np.arange(xmin, xmax + 1, dtype=np.float32) + 0.5
+        ys = np.arange(ymin, ymax + 1, dtype=np.float32) + 0.5
+        gx, gy = np.meshgrid(xs, ys)  # (rows, cols)
+
+        dxp0 = gx - x0[fi]
+        dyp0 = gy - y0_[fi]
+
+        # Barycentric coords (w0+w1+w2 = 1)
+        inv_a2 = 1.0 / a2
+        w1 = (dxp0 * dy20[fi] - dyp0 * dx20[fi]) * inv_a2
+        w2 = (dx10[fi] * dyp0 - dy10[fi] * dxp0) * inv_a2
+        w0 = 1.0 - w1 - w2
+
+        inside = (w0 >= 0) & (w1 >= 0) & (w2 >= 0)
+        if not inside.any():
+            continue
+
+        # Depth interpolation
+        z = w0 * z0[fi] + w1 * z1[fi] + w2 * z2[fi]
+
+        # Absolute pixel indices
+        pys_idx = np.arange(ymin, ymax + 1)
+        pxs_idx = np.arange(xmin, xmax + 1)
+        PY, PX = np.meshgrid(pys_idx, pxs_idx, indexing='ij')
+
+        mask = inside & (z < z_buf[PY, PX])
+        if not mask.any():
+            continue
+
+        z_buf[PY[mask], PX[mask]] = z[mask]
+        hit_buf[PY[mask], PX[mask]] = True
+
+        # Smooth normals via barycentric interpolation
+        n_interp = (
+            w0[mask, np.newaxis] * vn[i0[fi]]
+            + w1[mask, np.newaxis] * vn[i1[fi]]
+            + w2[mask, np.newaxis] * vn[i2[fi]]
         )
-        nlen = np.linalg.norm(smooth_n, axis=1, keepdims=True)
-        smooth_n = np.where(nlen > 1e-8, smooth_n / nlen,
-                            mesh.face_normals[index_tri].astype(np.float32))
+        normal_buf[PY[mask], PX[mask]] = n_interp
 
-        view = (-forward).astype(np.float32)
+    # ── Shading for hit pixels ────────────────────────────────────────────────
+    if hit_buf.any():
+        norms = normal_buf[hit_buf]      # (N, 3)
+        nlen  = np.linalg.norm(norms, axis=1, keepdims=True)
+        norms = np.where(nlen > 1e-8, norms / np.maximum(nlen, 1e-8),
+                         np.zeros_like(norms))
 
-        # 3-point lights
-        l_key = np.array([ 0.60,  0.40,  1.00], np.float32); l_key  /= np.linalg.norm(l_key)
-        l_fil = np.array([-1.00,  0.30,  0.45], np.float32); l_fil  /= np.linalg.norm(l_fil)
-        l_rim = np.array([-0.35, -0.80,  0.30], np.float32); l_rim  /= np.linalg.norm(l_rim)
-
-        d_key = np.clip(smooth_n @ l_key, 0, 1)
-        d_fil = np.clip(smooth_n @ l_fil, 0, 1)
-        d_rim = np.clip(smooth_n @ l_rim, 0, 1)
-
-        # Blinn-Phong specular (key light)
+        view  = (-forward).astype(np.float32)
+        l_key = np.array([ 0.60,  0.40,  1.00], np.float32); l_key /= np.linalg.norm(l_key)
+        l_fil = np.array([-1.00,  0.30,  0.45], np.float32); l_fil /= np.linalg.norm(l_fil)
+        l_rim = np.array([-0.35, -0.80,  0.30], np.float32); l_rim /= np.linalg.norm(l_rim)
         h_key = l_key + view; h_key /= np.linalg.norm(h_key)
-        spec = np.clip(smooth_n @ h_key, 0, 1).astype(np.float32) ** 42
 
-        # Fresnel-like silhouette darkening: faces at grazing angle get darker
-        ndotv = np.clip(smooth_n @ view, 0, 1)
-        fresnel = ndotv ** 1.5  # smooth falloff at silhouette
+        d_key = np.clip(norms @ l_key, 0, 1)
+        d_fil = np.clip(norms @ l_fil, 0, 1)
+        d_rim = np.clip(norms @ l_rim, 0, 1)
+        spec  = np.clip(norms @ h_key, 0, 1).astype(np.float32) ** 42
 
         shading = (
-            0.12                  # ambient
-            + 0.68 * d_key        # key light
-            + 0.16 * d_fil        # fill light
-            + 0.10 * d_rim        # rim  light
-        ) * fresnel + 0.38 * spec
+            0.18                 # ambient
+            + 0.82 * d_key       # key light
+            + 0.22 * d_fil       # fill light
+            + 0.10 * d_rim       # rim light
+            + 0.45 * spec        # specular highlight
+        )
 
         color = (
             _BASE_COLOR[np.newaxis, :] * shading[:, np.newaxis]
-            + np.array([0.85, 0.95, 0.90], np.float32) * (0.25 * spec[:, np.newaxis])
+            + np.array([0.85, 0.95, 0.90], np.float32) * (0.28 * spec[:, np.newaxis])
         )
-        pixels[index_ray] = np.clip(color, 0, 1)
+        color_buf[hit_buf] = np.clip(color, 0, 1)
 
-    img_arr = np.clip(pixels.reshape(H, W, 3) * 255, 0, 255).astype(np.uint8)
+    img_arr = np.clip(color_buf * 255, 0, 255).astype(np.uint8)
     return Image.fromarray(img_arr)
 
 
 # ── Matplotlib fallback ───────────────────────────────────────────────────────
 
 def _render_matplotlib(mesh) -> "PIL.Image.Image":
-    """Lambert-shaded matplotlib fallback (used if ray-caster fails)."""
+    """Lambert-shaded matplotlib fallback (used if rasterizer fails)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

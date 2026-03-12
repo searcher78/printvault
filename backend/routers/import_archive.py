@@ -100,6 +100,8 @@ async def import_archive(
     new_ids: list[int] = []
 
     with Session(engine) as session:
+        # Nach der Extraktion neu laden – Watcher kann Dateien bereits registriert haben
+        session.expire_all()
         existing_paths = {f.path for f in session.exec(select(PrintFile)).all()}
         for path in found_files:
             str_path = str(path)
@@ -107,20 +109,26 @@ async def import_archive(
                 skipped += 1
                 continue
             try:
-                pf = PrintFile(
-                    name=path.stem,
-                    path=str_path,
-                    format=SUPPORTED_3D.get(path.suffix.lower(), path.suffix[1:].upper()),
-                    size_bytes=path.stat().st_size,
-                    file_hash=_compute_hash(str_path),
-                )
-                session.add(pf)
-                session.flush()
+                with session.begin_nested():  # Savepoint: Fehler rollt nur diesen Eintrag zurück
+                    pf = PrintFile(
+                        name=path.stem,
+                        path=str_path,
+                        format=SUPPORTED_3D.get(path.suffix.lower(), path.suffix[1:].upper()),
+                        size_bytes=path.stat().st_size,
+                        file_hash=_compute_hash(str_path),
+                    )
+                    session.add(pf)
+                    session.flush()
                 new_ids.append(pf.id)
                 imported += 1
             except Exception as e:
-                errors.append(f"{path.name}: {e}")
-        session.commit()
+                skipped += 1
+                logger.warning("Übersprungen %s: %s", path.name, e)
+        try:
+            session.commit()
+        except Exception as e:
+            logger.error("DB-Commit fehlgeschlagen: %s", e)
+            raise HTTPException(status_code=503, detail=f"Datenbankfehler beim Speichern: {e}")
 
     # Thumbnail-Rendering + AI im Hintergrund
     if new_ids:

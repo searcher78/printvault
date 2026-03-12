@@ -18,34 +18,35 @@ _PRIORITY_STEMS = {"preview", "cover", "thumbnail", "render", "foto", "photo",
 
 
 def _find_folder_image(folder_abs: str) -> bool:
-    """Return True if the folder contains at least one image file."""
-    try:
-        return any(
-            os.path.splitext(e)[1].lower() in _IMAGE_EXTS
-            for e in os.listdir(folder_abs)
-            if os.path.isfile(os.path.join(folder_abs, e))
+    """Return True if the folder (or its parent) contains at least one image file."""
+    return _get_folder_image_path(folder_abs) is not None
+
+
+def _get_folder_image_path(folder_abs: str, files_dir: str | None = None) -> str | None:
+    """Return the path of the best image in the folder or its parent, or None."""
+    search_dirs = [folder_abs]
+    parent = os.path.dirname(folder_abs)
+    files_root = os.path.normpath(files_dir or os.getenv("FILES_DIR", "/files"))
+    if os.path.normpath(parent) != files_root:
+        search_dirs.append(parent)
+
+    for directory in search_dirs:
+        try:
+            entries = os.listdir(directory)
+        except OSError:
+            continue
+        images = sorted(
+            e for e in entries
+            if os.path.splitext(e)[1].lower() in _IMAGE_EXTS
+            and os.path.isfile(os.path.join(directory, e))
         )
-    except OSError:
-        return False
-
-
-def _get_folder_image_path(folder_abs: str) -> str | None:
-    """Return the path of the best image in the folder, or None."""
-    try:
-        entries = os.listdir(folder_abs)
-    except OSError:
-        return None
-    images = sorted(
-        e for e in entries
-        if os.path.splitext(e)[1].lower() in _IMAGE_EXTS
-        and os.path.isfile(os.path.join(folder_abs, e))
-    )
-    if not images:
-        return None
-    for img in images:
-        if os.path.splitext(img)[0].lower() in _PRIORITY_STEMS:
-            return os.path.join(folder_abs, img)
-    return os.path.join(folder_abs, images[0])
+        if not images:
+            continue
+        for img in images:
+            if os.path.splitext(img)[0].lower() in _PRIORITY_STEMS:
+                return os.path.join(directory, img)
+        return os.path.join(directory, images[0])
+    return None
 
 
 @router.get("/folders")
@@ -84,7 +85,7 @@ def get_folder_image(folder: str):
     # Security: must stay within files_dir
     if not folder_abs.startswith(os.path.normpath(files_dir)):
         raise HTTPException(status_code=400, detail="Invalid folder path")
-    img_path = _get_folder_image_path(folder_abs)
+    img_path = _get_folder_image_path(folder_abs, files_dir)
     if not img_path:
         raise HTTPException(status_code=404, detail="No image found in folder")
     ext = os.path.splitext(img_path)[1].lower().lstrip(".")

@@ -5,7 +5,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_3D = {".stl", ".3mf", ".obj", ".lys"}
+SUPPORTED_3D = {".stl": "STL", ".3mf": "3MF", ".obj": "OBJ", ".lys": "LYS"}
 
 ARCHIVE_SUFFIXES = {".zip", ".tar", ".gz", ".bz2", ".xz", ".tgz", ".tbz", ".7z", ".rar"}
 
@@ -55,7 +55,7 @@ def _safe_target(dest: Path, member_path: str) -> Path | None:
 
 
 def _collect_3d_files(directory: Path) -> list[Path]:
-    return [p for p in directory.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_3D]
+    return [p for p in directory.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_3D.keys()]
 
 
 def _extract_zip(archive_path: Path, dest_dir: Path) -> None:
@@ -93,14 +93,14 @@ def _extract_7z(archive_path: Path, dest_dir: Path) -> None:
 
 
 def _extract_rar(archive_path: Path, dest_dir: Path) -> None:
-    import rarfile
-    with rarfile.RarFile(archive_path, "r") as rf:
-        for info in rf.infolist():
-            if info.is_dir():
-                continue
-            target = _safe_target(dest_dir, info.filename)
-            if target is None:
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with rf.open(info) as src, open(target, "wb") as dst:
-                dst.write(src.read())
+    import subprocess
+    result = subprocess.run(
+        ["unrar-free", "-x", "-f", str(archive_path), str(dest_dir) + "/"],
+        capture_output=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"unrar-free failed (exit {result.returncode}): "
+            f"{result.stderr.decode(errors='replace')[:500]}"
+        )
