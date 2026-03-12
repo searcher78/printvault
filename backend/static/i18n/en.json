@@ -113,5 +113,22 @@
   "toast_relinked": "✓ File relinked",
   "toast_relink_error": "Error relinking file",
   "toast_check_missing": "✓ Check complete – {missing} missing, {found} re-found",
-  "btn_check_missing": "⚠ Check missing"
+  "btn_check_missing": "⚠ Check missing",
+  "nav_sets": "Sets",
+  "set_edit_title": "Edit set",
+  "set_create_title": "Save folder as set",
+  "set_name_label": "Set name",
+  "set_name_placeholder": "Set name",
+  "set_desc_label": "Description",
+  "set_desc_placeholder": "Short description (optional)…",
+  "set_btn_save": "✓ Save set",
+  "set_btn_delete": "✕ Delete set",
+  "set_no_desc": "No description",
+  "btn_save_as_set": "◈ Save as set",
+  "btn_edit_set": "◈ Edit set",
+  "set_empty_title": "No sets yet",
+  "set_empty_sub": "Open a folder and save it as a set",
+  "toast_set_saved": "✓ Set saved",
+  "toast_set_deleted": "Set deleted",
+  "toast_set_error": "Error saving set"
 }

@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from database import create_db_and_tables
-from routers import files, locate, rename, scan, settings
+from routers import files, locate, rename, scan, settings, sets
 from services.watcher import start_watcher, stop_watcher
 
 logging.basicConfig(
@@ -30,6 +30,7 @@ app.include_router(locate.router, prefix="/api")
 app.include_router(rename.router, prefix="/api")
 app.include_router(scan.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
+app.include_router(sets.router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

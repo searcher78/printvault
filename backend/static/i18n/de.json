@@ -113,5 +113,22 @@
   "toast_relinked": "✓ Datei neu verknüpft",
   "toast_relink_error": "Fehler beim Verknüpfen",
   "toast_check_missing": "✓ Prüfung abgeschlossen – {missing} fehlend, {found} wiedergefunden",
-  "btn_check_missing": "⚠ Fehlende prüfen"
+  "btn_check_missing": "⚠ Fehlende prüfen",
+  "nav_sets": "Sets",
+  "set_edit_title": "Set bearbeiten",
+  "set_create_title": "Ordner als Set speichern",
+  "set_name_label": "Set-Name",
+  "set_name_placeholder": "Name des Sets",
+  "set_desc_label": "Beschreibung",
+  "set_desc_placeholder": "Kurze Beschreibung (optional)…",
+  "set_btn_save": "✓ Set speichern",
+  "set_btn_delete": "✕ Set löschen",
+  "set_no_desc": "Keine Beschreibung",
+  "btn_save_as_set": "◈ Als Set speichern",
+  "btn_edit_set": "◈ Set bearbeiten",
+  "set_empty_title": "Keine Sets vorhanden",
+  "set_empty_sub": "Öffne einen Ordner und speichere ihn als Set",
+  "toast_set_saved": "✓ Set gespeichert",
+  "toast_set_deleted": "Set gelöscht",
+  "toast_set_error": "Fehler beim Speichern des Sets"
 }

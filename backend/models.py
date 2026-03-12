@@ -77,3 +77,17 @@ class PrintFileUpdate(SQLModel):
     notes: Optional[str] = None
     favorite: Optional[bool] = None
     print_status: Optional[str] = None
+
+
+class FolderSet(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    folder: str = Field(unique=True, index=True)  # relative path from FILES_DIR
+    display_name: str = ""
+    description: str = ""
+    date_created: datetime = Field(default_factory=datetime.utcnow)
+
+
+class FolderSetUpsert(SQLModel):
+    folder: str
+    display_name: str = ""
+    description: str = ""

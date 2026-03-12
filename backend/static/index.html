@@ -1219,6 +1219,58 @@
   }
 
   .hidden { display: none !important; }
+
+  /* SETS VIEW */
+  .sets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .set-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .set-card:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+  .set-card-hero {
+    position: relative; height: 160px; background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; color: var(--surface3); overflow: hidden;
+  }
+  .set-card-hero img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    filter: brightness(0.8);
+  }
+  .set-card-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    padding: 16px 14px 10px;
+  }
+  .set-card-name {
+    font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700;
+    color: #fff; letter-spacing: 0.5px;
+  }
+  .set-card-count {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    color: rgba(255,255,255,0.55);
+  }
+  .set-card-body { padding: 12px 14px; }
+  .set-card-desc {
+    font-size: 13px; color: var(--text-muted); line-height: 1.5;
+  }
+
+  /* SET BAR (below page title when folder is active) */
+  .set-bar {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 14px; margin-bottom: 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .set-bar-desc { flex: 1; font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+  .set-bar-actions { display: flex; gap: 6px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -1242,6 +1294,10 @@
     <div class="nav-item" data-nav="recent" onclick="setNav(this,'recent')">
       <span class="icon">◷</span> <span data-i18n="nav_recent">Zuletzt hinzugefügt</span>
       <span class="count" id="cnt-rec">—</span>
+    </div>
+    <div class="nav-item" data-nav="sets" onclick="setNav(this,'sets')">
+      <span class="icon">◈</span> <span data-i18n="nav_sets">Sets</span>
+      <span class="count" id="cnt-sets">—</span>
     </div>
     <div class="nav-item" id="navMissing" data-nav="missing" onclick="setNav(this,'missing')" style="display:none">
       <span class="icon" style="color:var(--red)">⚠</span>
@@ -1326,6 +1382,22 @@
         <div class="folder-hero-count" id="folderHeroCount"></div>
       </div>
     </div>
+
+    <!-- SET INFO BAR (shown when viewing a folder that is a set) -->
+    <div id="setBar" class="set-bar hidden">
+      <div class="set-bar-desc" id="setBarDesc"></div>
+      <div class="set-bar-actions">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="openSetEditor()" id="setBarEditBtn" data-i18n="btn_edit_set">◈ Set bearbeiten</button>
+        <button class="btn btn-ghost" style="font-size:12px;color:var(--red)" onclick="deleteCurrentSet()" id="setBarDeleteBtn" data-i18n="set_btn_delete">✕ Set löschen</button>
+      </div>
+    </div>
+    <!-- SAVE AS SET button (shown when folder is active but not yet a set) -->
+    <div id="setCreateBar" class="hidden" style="margin-bottom:14px">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="openSetEditor()" data-i18n="btn_save_as_set">◈ Als Set speichern</button>
+    </div>
+
+    <!-- SETS OVERVIEW -->
+    <div class="sets-grid hidden" id="setsGrid"></div>
 
     <!-- FORMAT FILTER CHIPS -->
     <div class="filter-row">
@@ -1437,6 +1509,32 @@
   <img id="lightboxImg" src="" alt="">
 </div>
 
+<!-- SET EDITOR DIALOG -->
+<div class="locate-overlay hidden" id="setEditorOverlay" onclick="if(event.target===this)closeSetEditor()">
+  <div class="locate-dialog" style="width:480px">
+    <h3 id="setEditorTitle"></h3>
+    <div style="margin-bottom:14px">
+      <label class="edit-section-label" data-i18n="set_name_label">Set-Name</label>
+      <input class="tag-add-input" id="setEditorName" style="width:100%"
+             data-i18n-placeholder="set_name_placeholder" placeholder="Name des Sets">
+    </div>
+    <div style="margin-bottom:14px">
+      <label class="edit-section-label" data-i18n="set_desc_label">Beschreibung</label>
+      <textarea class="edit-textarea" id="setEditorDesc" rows="3"
+                data-i18n-placeholder="set_desc_placeholder"
+                placeholder="Kurze Beschreibung (optional)…"></textarea>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+      <button class="btn btn-ghost" style="color:var(--red)" id="setEditorDeleteBtn"
+              onclick="deleteCurrentSet(true)" data-i18n="set_btn_delete">✕ Set löschen</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="closeSetEditor()" data-i18n="btn_cancel">Abbrechen</button>
+        <button class="btn btn-primary" onclick="saveSet()" data-i18n="set_btn_save">✓ Set speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- LOCATE DIALOG -->
 <div class="locate-overlay hidden" id="locateOverlay" onclick="if(event.target===this)closeLocateDialog()">
   <div class="locate-dialog">
@@ -1538,6 +1636,7 @@ const CAT_COLORS = [
 ];
 let editFile     = null;
 let editTags     = [];
+let currentSetId = null;  // DB id of set for the active folder (null if none)
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -1555,7 +1654,7 @@ async function init() {
   await loadCategories();
   renderCategoryNav();
   renderCatPicker();
-  await Promise.all([loadStats(), loadFiles(), loadFolders()]);
+  await Promise.all([loadStats(), loadFiles(), loadFolders(), loadSetsCount()]);
 }
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
@@ -1628,6 +1727,7 @@ function setNav(el, nav) {
     'fav':     t('title_favorites'),
     'recent':  t('title_recent'),
     'missing': `<span style="color:var(--red)">${t('nav_missing')}</span>`,
+    'sets':    `<span>${t('nav_sets')}</span>`,
   };
   let title = staticTitles[nav];
   if (!title && nav.startsWith('cat:')) {
@@ -1635,6 +1735,18 @@ function setNav(el, nav) {
     title = t('title_category', {name: esc(catLabel(key))});
   }
   document.getElementById('pageTitle').innerHTML = title || t('nav_all');
+
+  // Show/hide sets overview vs file grid
+  const isSets = nav === 'sets';
+  document.getElementById('setsGrid').classList.toggle('hidden', !isSets);
+  document.getElementById('filesGrid').classList.toggle('hidden', isSets);
+  document.getElementById('filesList').classList.toggle('hidden', isSets || currentView !== 'list');
+  document.querySelector('.filter-row').classList.toggle('hidden', isSets);
+  document.getElementById('resultInfo').classList.toggle('hidden', isSets);
+  document.getElementById('sortSelect').closest('.view-controls').querySelector('.view-toggle').style.display = isSets ? 'none' : '';
+  hideSetBars();
+
+  if (isSets) { loadSetsView(); return; }
   loadFiles();
 }
 
@@ -1791,7 +1903,13 @@ function setFolder(el, folder, displayName, hasImage) {
   activeFolder = folder;
   document.getElementById('pageTitle').innerHTML = t('title_folder', {name: esc(displayName)});
   const count = el.querySelector('.count')?.textContent || '';
+  // Ensure sets grid is hidden, file grids are visible
+  document.getElementById('setsGrid').classList.add('hidden');
+  document.getElementById('filesGrid').classList.remove('hidden');
+  document.querySelector('.filter-row').classList.remove('hidden');
+  document.getElementById('resultInfo').classList.remove('hidden');
   showFolderHero(folder, displayName, !!hasImage, count);
+  loadFolderSetInfo(folder);
   loadFiles();
 }
 
@@ -1805,9 +1923,145 @@ function filterByFolder(folder) {
   activeNav    = 'folder';
   activeFolder = folder;
   document.getElementById('pageTitle').innerHTML = t('title_folder', {name: esc(displayName)});
+  document.getElementById('setsGrid').classList.add('hidden');
+  document.getElementById('filesGrid').classList.remove('hidden');
+  document.querySelector('.filter-row').classList.remove('hidden');
+  document.getElementById('resultInfo').classList.remove('hidden');
   showFolderHero(folder, displayName, hasImage, count);
+  loadFolderSetInfo(folder);
   closeModal();
   loadFiles();
+}
+
+// ─── SETS ─────────────────────────────────────────────────────────────────────
+function hideSetBars() {
+  document.getElementById('setBar').classList.add('hidden');
+  document.getElementById('setCreateBar').classList.add('hidden');
+  currentSetId = null;
+}
+
+async function loadFolderSetInfo(folder) {
+  hideSetBars();
+  try {
+    const s = await api('GET', `/api/sets/by-folder?folder=${encodeURIComponent(folder)}`);
+    currentSetId = s.id;
+    document.getElementById('setBarDesc').textContent = s.description || t('set_no_desc');
+    document.getElementById('setBar').classList.remove('hidden');
+  } catch(e) {
+    if (e.message && e.message.includes('404')) {
+      document.getElementById('setCreateBar').classList.remove('hidden');
+    }
+  }
+}
+
+async function loadSetsView() {
+  const grid = document.getElementById('setsGrid');
+  grid.innerHTML = loadingHTML();
+  try {
+    const sets = await api('GET', '/api/sets');
+    document.getElementById('cnt-sets').textContent = sets.length;
+    if (!sets.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">◈</div>
+        <div class="empty-title">${t('set_empty_title')}</div>
+        <div class="empty-sub">${t('set_empty_sub')}</div>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = sets.map(s => {
+      const img = `<img src="/api/folder-image?folder=${encodeURIComponent(s.folder)}"
+        style="width:100%;height:100%;object-fit:cover;display:block;filter:brightness(0.8)"
+        onerror="this.style.display='none'">`;
+      return `
+      <div class="set-card" onclick="openSetFolder('${esc(s.folder)}', '${esc(s.display_name)}')">
+        <div class="set-card-hero">
+          ${img}
+          <div class="set-card-overlay">
+            <div class="set-card-name">${esc(s.display_name)}</div>
+            <div class="set-card-count">${s.file_count} Dateien</div>
+          </div>
+        </div>
+        ${s.description ? `<div class="set-card-body"><div class="set-card-desc">${esc(s.description)}</div></div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) { grid.innerHTML = errorHTML(); }
+}
+
+function openSetFolder(folder, displayName) {
+  const el = Array.from(document.querySelectorAll('.nav-item[data-folder]'))
+    .find(e => e.dataset.folder === folder);
+  if (el) {
+    onFolderClick(null, el);
+  } else {
+    // folder may not be visible in tree — navigate programmatically
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    activeNav    = 'folder';
+    activeFolder = folder;
+    document.getElementById('pageTitle').innerHTML = t('title_folder', {name: esc(displayName)});
+    document.getElementById('setsGrid').classList.add('hidden');
+    document.getElementById('filesGrid').classList.remove('hidden');
+    document.querySelector('.filter-row').classList.remove('hidden');
+    document.getElementById('resultInfo').classList.remove('hidden');
+    hideFolderHero();
+    loadFolderSetInfo(folder);
+    loadFiles();
+  }
+}
+
+function openSetEditor() {
+  const isEdit = currentSetId !== null;
+  document.getElementById('setEditorTitle').textContent = isEdit ? t('set_edit_title') : t('set_create_title');
+  document.getElementById('setEditorDeleteBtn').classList.toggle('hidden', !isEdit);
+  // Pre-fill with current set data if editing
+  if (isEdit) {
+    const desc = document.getElementById('setBarDesc').textContent;
+    const name = document.getElementById('folderHeroName').textContent
+      || (activeFolder ? activeFolder.split('/').pop() : '');
+    document.getElementById('setEditorName').value = name;
+    document.getElementById('setEditorDesc').value = desc === t('set_no_desc') ? '' : desc;
+  } else {
+    document.getElementById('setEditorName').value =
+      activeFolder ? activeFolder.split('/').pop() : '';
+    document.getElementById('setEditorDesc').value = '';
+  }
+  document.getElementById('setEditorOverlay').classList.remove('hidden');
+  document.getElementById('setEditorName').focus();
+}
+
+function closeSetEditor() {
+  document.getElementById('setEditorOverlay').classList.add('hidden');
+}
+
+async function saveSet() {
+  const display_name = document.getElementById('setEditorName').value.trim();
+  const description  = document.getElementById('setEditorDesc').value.trim();
+  if (!activeFolder) return;
+  try {
+    await api('PUT', '/api/sets', { folder: activeFolder, display_name, description });
+    closeSetEditor();
+    showToast(t('toast_set_saved'), '✓');
+    await loadFolderSetInfo(activeFolder);
+    await loadSetsCount();
+  } catch(e) { showToast(t('toast_set_error'), '✕'); }
+}
+
+async function deleteCurrentSet(fromEditor = false) {
+  if (!currentSetId) return;
+  if (fromEditor) closeSetEditor();
+  try {
+    await api('DELETE', `/api/sets/${currentSetId}`);
+    showToast(t('toast_set_deleted'), '◈');
+    hideSetBars();
+    if (activeFolder) document.getElementById('setCreateBar').classList.remove('hidden');
+    await loadSetsCount();
+  } catch(e) { showToast(t('toast_set_error'), '✕'); }
+}
+
+async function loadSetsCount() {
+  try {
+    const sets = await api('GET', '/api/sets');
+    document.getElementById('cnt-sets').textContent = sets.length;
+  } catch(e) {}
 }
 
 // ─── CATEGORIES ───────────────────────────────────────────────────────────────
@@ -1995,8 +2249,9 @@ function listItemHTML(f, q) {
 // ─── VIEW TOGGLE ──────────────────────────────────────────────────────────────
 function setView(v) {
   currentView = v;
-  document.getElementById('filesGrid').classList.toggle('hidden', v !== 'grid');
-  document.getElementById('filesList').classList.toggle('hidden', v !== 'list');
+  const isSets = activeNav === 'sets';
+  document.getElementById('filesGrid').classList.toggle('hidden', isSets || v !== 'grid');
+  document.getElementById('filesList').classList.toggle('hidden', isSets || v !== 'list');
   document.getElementById('gridBtn').classList.toggle('active', v === 'grid');
   document.getElementById('listBtn').classList.toggle('active', v === 'list');
 }
@@ -2439,7 +2694,7 @@ function closeLightbox() {
 
 // ─── KEYBOARD ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeLocateDialog(); closeModal(); }
+  if (e.key === 'Escape') { close3DViewer(); closeLightbox(); closeLocateDialog(); closeSetEditor(); closeModal(); }
   if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
     e.preventDefault();
     document.getElementById('searchInput').focus();
