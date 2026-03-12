@@ -1187,41 +1187,50 @@
     <div class="logo-sub">3D File Manager</div>
   </div>
   <nav class="nav">
-    <div class="nav-section">Bibliothek</div>
+    <div class="nav-section" data-i18n="nav_library">Bibliothek</div>
     <div class="nav-item active" data-nav="all" onclick="setNav(this,'all')">
-      <span class="icon">◈</span> Alle Dateien
+      <span class="icon">◈</span> <span data-i18n="nav_all">Alle Dateien</span>
       <span class="count" id="cnt-all">—</span>
     </div>
     <div class="nav-item" data-nav="fav" onclick="setNav(this,'fav')">
-      <span class="icon">★</span> Favoriten
+      <span class="icon">★</span> <span data-i18n="nav_favorites">Favoriten</span>
       <span class="count" id="cnt-fav">—</span>
     </div>
     <div class="nav-item" data-nav="recent" onclick="setNav(this,'recent')">
-      <span class="icon">◷</span> Zuletzt hinzugefügt
+      <span class="icon">◷</span> <span data-i18n="nav_recent">Zuletzt hinzugefügt</span>
       <span class="count" id="cnt-rec">—</span>
     </div>
     <div class="nav-section cat-nav-header" style="margin-top:12px">
-      Kategorien
-      <button class="add-cat-btn" onclick="toggleAddCatForm()" title="Neue Kategorie">+</button>
+      <span data-i18n="nav_categories">Kategorien</span>
+      <button class="add-cat-btn" onclick="toggleAddCatForm()" data-i18n-title="nav_cat_new_title" title="Neue Kategorie">+</button>
     </div>
     <div id="categoryNavList"></div>
     <div class="add-cat-form hidden" id="addCatForm">
       <div class="add-cat-row">
         <input id="addCatIcon" placeholder="Icon" style="width:50px;text-align:center" maxlength="4">
-        <input id="addCatKey" placeholder="key (z.B. terrain)" style="flex:1">
+        <input id="addCatKey" data-i18n-placeholder="nav_cat_key_placeholder" placeholder="key (z.B. terrain)" style="flex:1">
       </div>
-      <input id="addCatLabel" placeholder="Anzeigename (z.B. Terrain)">
-      <button class="btn btn-primary" onclick="submitAddCategory()" style="font-size:12px;padding:6px 10px">Hinzufügen</button>
+      <input id="addCatLabel" data-i18n-placeholder="nav_cat_label_placeholder" placeholder="Anzeigename (z.B. Terrain)">
+      <button class="btn btn-primary" onclick="submitAddCategory()" style="font-size:12px;padding:6px 10px" data-i18n="btn_add">Hinzufügen</button>
     </div>
-    <div class="nav-section" style="margin-top:12px">Ordner</div>
+    <div class="nav-section" style="margin-top:12px" data-i18n="nav_folders">Ordner</div>
     <div class="folder-nav-list" id="folderNavList">
-      <div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">Lädt…</div>
+      <div style="padding:8px 20px;font-size:12px;color:var(--text-muted)" data-i18n="nav_folders_loading">Lädt…</div>
     </div>
   </nav>
   <div class="sidebar-stats">
-    <div class="stat-row"><span>Dateien gesamt</span><span class="stat-val" id="stat-total">—</span></div>
-    <div class="stat-row"><span>Speicher</span><span class="stat-val" id="stat-size">—</span></div>
-    <div class="stat-row"><span>KI analysiert</span><span class="stat-val" id="stat-ai">—</span></div>
+    <div class="stat-row"><span data-i18n="stat_total">Dateien gesamt</span><span class="stat-val" id="stat-total">—</span></div>
+    <div class="stat-row"><span data-i18n="stat_size">Speicher</span><span class="stat-val" id="stat-size">—</span></div>
+    <div class="stat-row"><span data-i18n="stat_ai">KI analysiert</span><span class="stat-val" id="stat-ai">—</span></div>
+    <div class="stat-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+      <span data-i18n="lang_switch_label" style="color:var(--text-muted);font-size:10px">Sprache</span>
+      <div style="display:flex;gap:4px">
+        <button id="langBtnDe" onclick="switchLang('de')"
+                style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:4px;padding:1px 6px;font-size:10px;cursor:pointer;font-family:'Space Mono',monospace">DE</button>
+        <button id="langBtnEn" onclick="switchLang('en')"
+                style="background:none;border:1px solid var(--border);color:var(--text-dim);border-radius:4px;padding:1px 6px;font-size:10px;cursor:pointer;font-family:'Space Mono',monospace">EN</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1231,11 +1240,12 @@
     <div class="search-wrap">
       <span class="search-icon">⌕</span>
       <input type="text" class="search-input" id="searchInput"
+             data-i18n-placeholder="topbar_search_placeholder"
              placeholder="Suchen… z.B. »space marine«, »stl«, »fantasy«"
              oninput="scheduleSearch()">
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-primary" id="scanBtn" onclick="triggerScan()">⬆ Scannen</button>
+      <button class="btn btn-primary" id="scanBtn" onclick="triggerScan()" data-i18n="btn_scan">⬆ Scannen</button>
     </div>
   </div>
 
@@ -1244,12 +1254,12 @@
       <div class="page-title" id="pageTitle">Alle <span>Dateien</span></div>
       <div class="view-controls">
         <select class="sort-select" id="sortSelect" onchange="loadFiles()">
-          <option value="name_asc">Name A–Z</option>
-          <option value="name_desc">Name Z–A</option>
-          <option value="date_desc" selected>Zuletzt hinzugefügt</option>
-          <option value="date_asc">Älteste zuerst</option>
-          <option value="size_desc">Größte zuerst</option>
-          <option value="size_asc">Kleinste zuerst</option>
+          <option value="name_asc"  data-i18n="sort_name_asc">Name A–Z</option>
+          <option value="name_desc" data-i18n="sort_name_desc">Name Z–A</option>
+          <option value="date_desc" data-i18n="sort_date_desc" selected>Zuletzt hinzugefügt</option>
+          <option value="date_asc"  data-i18n="sort_date_asc">Älteste zuerst</option>
+          <option value="size_desc" data-i18n="sort_size_desc">Größte zuerst</option>
+          <option value="size_asc"  data-i18n="sort_size_asc">Kleinste zuerst</option>
         </select>
         <div class="view-toggle">
           <button class="view-btn active" id="gridBtn" onclick="setView('grid')">⊞</button>
@@ -1270,7 +1280,7 @@
 
     <!-- FORMAT FILTER CHIPS -->
     <div class="filter-row">
-      <span class="filter-label">Format:</span>
+      <span class="filter-label" data-i18n="filter_format">Format:</span>
       <div class="chip fmt-stl" data-fmt="STL" onclick="toggleChip(this)">STL</div>
       <div class="chip fmt-3mf" data-fmt="3MF" onclick="toggleChip(this)">3MF</div>
       <div class="chip fmt-obj" data-fmt="OBJ" onclick="toggleChip(this)">OBJ</div>
@@ -1304,42 +1314,44 @@
       <!-- EDIT PANEL -->
       <div id="editPanel" class="hidden" style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
         <div class="edit-section">
-          <span class="edit-section-label">Dateiname</span>
+          <span class="edit-section-label" data-i18n="edit_filename">Dateiname</span>
           <input class="edit-textarea" id="editName" type="text" maxlength="200"
                  style="padding:8px 10px;height:auto;resize:none;font-family:'Inter',sans-serif">
         </div>
         <div class="edit-section">
-          <span class="edit-section-label">Kategorie</span>
+          <span class="edit-section-label" data-i18n="edit_category">Kategorie</span>
           <div class="cat-picker" id="catPickerContainer"></div>
         </div>
         <div class="edit-section">
-          <span class="edit-section-label">Tags</span>
+          <span class="edit-section-label" data-i18n="edit_tags">Tags</span>
           <div class="tag-chips-edit" id="tagChipsEdit"></div>
           <div class="tag-add-row">
-            <input class="tag-add-input" id="tagInput" placeholder="Tag eingeben + Enter"
+            <input class="tag-add-input" id="tagInput" data-i18n-placeholder="edit_tag_placeholder"
+                   placeholder="Tag eingeben + Enter"
                    onkeydown="if(event.key==='Enter'){event.preventDefault();addTag()}">
             <button class="btn btn-ghost" onclick="addTag()">+</button>
           </div>
         </div>
         <div class="edit-section">
-          <span class="edit-section-label">Schwierigkeit</span>
+          <span class="edit-section-label" data-i18n="edit_difficulty">Schwierigkeit</span>
           <div class="diff-row">
-            <button class="diff-btn" data-diff="easy"   onclick="selectDiff(this)">Leicht</button>
-            <button class="diff-btn" data-diff="medium" onclick="selectDiff(this)">Mittel</button>
-            <button class="diff-btn" data-diff="hard"   onclick="selectDiff(this)">Schwer</button>
+            <button class="diff-btn" data-diff="easy"   onclick="selectDiff(this)" data-i18n="edit_diff_easy">Leicht</button>
+            <button class="diff-btn" data-diff="medium" onclick="selectDiff(this)" data-i18n="edit_diff_medium">Mittel</button>
+            <button class="diff-btn" data-diff="hard"   onclick="selectDiff(this)" data-i18n="edit_diff_hard">Schwer</button>
           </div>
         </div>
         <div class="edit-section" style="display:flex;align-items:center;gap:12px">
-          <span class="edit-section-label" style="margin-bottom:0">Supports nötig</span>
-          <button class="supports-btn" id="supportsBtn" onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?'✓ Ja':'✕ Nein'">✕ Nein</button>
+          <span class="edit-section-label" style="margin-bottom:0" data-i18n="edit_supports">Supports nötig</span>
+          <button class="supports-btn" id="supportsBtn"
+                  onclick="this.classList.toggle('on');this.textContent=this.classList.contains('on')?t('edit_supports_yes'):t('edit_supports_no')">✕ Nein</button>
         </div>
         <div class="edit-section">
-          <span class="edit-section-label">Notizen</span>
+          <span class="edit-section-label" data-i18n="edit_notes">Notizen</span>
           <textarea class="edit-textarea" id="editNotes" maxlength="200"></textarea>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="saveEdit()">✓ Speichern</button>
-          <button class="btn btn-ghost"   onclick="cancelEdit()">Abbrechen</button>
+          <button class="btn btn-primary" onclick="saveEdit()" data-i18n="btn_save">✓ Speichern</button>
+          <button class="btn btn-ghost"   onclick="cancelEdit()" data-i18n="btn_cancel">Abbrechen</button>
         </div>
       </div>
 
@@ -1354,17 +1366,17 @@
   <div class="viewer3d-bar">
     <span class="viewer3d-title" id="viewer3dTitle"></span>
     <div class="viewer3d-hints">
-      <span><span class="viewer3d-hint-key">Drag</span>Drehen</span>
-      <span><span class="viewer3d-hint-key">Scroll</span>Zoom</span>
-      <span><span class="viewer3d-hint-key">Rechtsklick</span>Verschieben</span>
-      <span><span class="viewer3d-hint-key">Esc</span>Schließen</span>
+      <span><span class="viewer3d-hint-key">Drag</span><span data-i18n="viewer_rotate">Drehen</span></span>
+      <span><span class="viewer3d-hint-key">Scroll</span><span data-i18n="viewer_zoom">Zoom</span></span>
+      <span><span class="viewer3d-hint-key">Rechtsklick</span><span data-i18n="viewer_pan">Verschieben</span></span>
+      <span><span class="viewer3d-hint-key">Esc</span><span data-i18n="viewer_close">Schließen</span></span>
       <button class="viewer3d-close-btn" onclick="close3DViewer()">✕</button>
     </div>
   </div>
   <div class="viewer3d-wrap" id="viewer3dWrap">
     <div class="viewer3d-loading" id="viewer3dLoading">
       <div class="viewer3d-spinner"></div>
-      <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)">Lade Modell…</div>
+      <div style="margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)" data-i18n="viewer_loading">Lade Modell…</div>
     </div>
     <canvas id="viewer3dCanvas"></canvas>
   </div>
@@ -1383,6 +1395,58 @@
 </div>
 
 <script>
+// ─── I18N ─────────────────────────────────────────────────────────────────────
+let currentLang  = localStorage.getItem('lang') || 'de';
+let translations = {};
+
+async function loadI18n(lang) {
+  try {
+    const res = await fetch(`/static/i18n/${lang}.json`);
+    translations = await res.json();
+    currentLang = lang;
+    localStorage.setItem('lang', lang);
+  } catch(e) { console.error('i18n load error', e); }
+}
+
+function t(key, vars) {
+  let str = translations[key] ?? key;
+  if (vars) str = str.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+  return str;
+}
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+  // update language button active states
+  document.getElementById('langBtnDe')?.style && (
+    document.getElementById('langBtnDe').style.borderColor = currentLang === 'de' ? 'var(--accent)' : '',
+    document.getElementById('langBtnDe').style.color       = currentLang === 'de' ? 'var(--accent)' : '',
+    document.getElementById('langBtnEn').style.borderColor = currentLang === 'en' ? 'var(--accent)' : '',
+    document.getElementById('langBtnEn').style.color       = currentLang === 'en' ? 'var(--accent)' : ''
+  );
+}
+
+async function switchLang(lang) {
+  if (lang === currentLang) return;
+  await loadI18n(lang);
+  applyI18n();
+  // re-render dynamic content that depends on translations
+  const titleEl = document.getElementById('pageTitle');
+  if (activeNav === 'all')    titleEl.innerHTML = t('title_all');
+  else if (activeNav === 'fav')    titleEl.innerHTML = t('title_favorites');
+  else if (activeNav === 'recent') titleEl.innerHTML = t('title_recent');
+  loadFolders();
+  loadFiles();
+  loadStats();
+}
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let activeNav    = 'all';
 let activeFormat = null;
@@ -1426,6 +1490,8 @@ async function api(method, path, body) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
+  await loadI18n(currentLang);
+  applyI18n();
   await loadCategories();
   renderCategoryNav();
   renderCatPicker();
@@ -1492,16 +1558,16 @@ function setNav(el, nav) {
   hideFolderHero();
 
   const staticTitles = {
-    'all':    'Alle <span>Dateien</span>',
-    'fav':    'Meine <span>Favoriten</span>',
-    'recent': 'Zuletzt <span>hinzugefügt</span>',
+    'all':    t('title_all'),
+    'fav':    t('title_favorites'),
+    'recent': t('title_recent'),
   };
   let title = staticTitles[nav];
   if (!title && nav.startsWith('cat:')) {
     const key = nav.slice(4);
-    title = `Kategorie: <span>${esc(catLabel(key))}</span>`;
+    title = t('title_category', {name: esc(catLabel(key))});
   }
-  document.getElementById('pageTitle').innerHTML = title || 'Dateien';
+  document.getElementById('pageTitle').innerHTML = title || t('nav_all');
   loadFiles();
 }
 
@@ -1529,13 +1595,13 @@ function startFolderRename(event, btn) {
       const result = await api('POST', '/api/folders/rename', { folder, new_name: newName });
       if (activeFolder === folder) {
         activeFolder = result.new_folder;
-        document.getElementById('pageTitle').innerHTML = `Ordner: <span>${esc(newName)}</span>`;
+        document.getElementById('pageTitle').innerHTML = t('title_folder', {name: esc(newName)});
       }
       await loadFolders();
       loadFiles();
-      showToast('✓ Ordner umbenannt', '✓');
+      showToast(t('toast_folder_renamed'), '✓');
     } catch(e) {
-      showToast('Fehler: ' + (e.message || 'Umbenennen fehlgeschlagen'), '✕');
+      showToast(t('toast_folder_rename_error', {error: e.message || t('toast_rename_error')}), '✕');
       await loadFolders();
     }
   }
@@ -1630,7 +1696,7 @@ async function loadFolders() {
     const folders = await api('GET', '/api/folders');
     const list = document.getElementById('folderNavList');
     if (!folders.length) {
-      list.innerHTML = '<div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">Keine Unterordner</div>';
+      list.innerHTML = `<div style="padding:8px 20px;font-size:12px;color:var(--text-muted)">${t('nav_folders_none')}</div>`;
       return;
     }
     const tree = buildFolderTree(folders);
@@ -1643,7 +1709,7 @@ function showFolderHero(folder, displayName, hasImage, count) {
   if (!hasImage) { hero.classList.add('hidden'); return; }
   document.getElementById('folderHeroImg').src  = `/api/folder-image?folder=${encodeURIComponent(folder)}`;
   document.getElementById('folderHeroName').textContent  = displayName;
-  document.getElementById('folderHeroCount').textContent = `${count} Dateien`;
+  document.getElementById('folderHeroCount').textContent = t('hero_files', {count});
   hero.classList.remove('hidden');
 }
 
@@ -1656,7 +1722,7 @@ function setFolder(el, folder, displayName, hasImage) {
   el.classList.add('active');
   activeNav    = 'folder';
   activeFolder = folder;
-  document.getElementById('pageTitle').innerHTML = `Ordner: <span>${esc(displayName)}</span>`;
+  document.getElementById('pageTitle').innerHTML = t('title_folder', {name: esc(displayName)});
   const count = el.querySelector('.count')?.textContent || '';
   showFolderHero(folder, displayName, !!hasImage, count);
   loadFiles();
@@ -1671,7 +1737,7 @@ function filterByFolder(folder) {
   if (el) el.classList.add('active');
   activeNav    = 'folder';
   activeFolder = folder;
-  document.getElementById('pageTitle').innerHTML = `Ordner: <span>${esc(displayName)}</span>`;
+  document.getElementById('pageTitle').innerHTML = t('title_folder', {name: esc(displayName)});
   showFolderHero(folder, displayName, hasImage, count);
   closeModal();
   loadFiles();
@@ -1726,8 +1792,8 @@ async function submitAddCategory() {
   const key   = document.getElementById('addCatKey').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
   const label = document.getElementById('addCatLabel').value.trim();
   const icon  = document.getElementById('addCatIcon').value.trim() || '◈';
-  if (!key || !label) { showToast('Schlüssel und Name erforderlich', '✕'); return; }
-  if (categories.find(c => c.key === key)) { showToast('Kategorie existiert bereits', '✕'); return; }
+  if (!key || !label) { showToast(t('toast_cat_required'), '✕'); return; }
+  if (categories.find(c => c.key === key)) { showToast(t('toast_cat_exists'), '✕'); return; }
   categories.push({key, label, icon});
   await saveCategories();
   renderCategoryNav();
@@ -1736,12 +1802,12 @@ async function submitAddCategory() {
   document.getElementById('addCatKey').value = '';
   document.getElementById('addCatLabel').value = '';
   document.getElementById('addCatIcon').value = '';
-  showToast(`Kategorie „${label}" angelegt`, '✓');
+  showToast(t('toast_cat_added', {name: label}), '✓');
 }
 
 async function deleteCategory(key) {
   const label = catLabel(key);
-  if (!confirm(`Kategorie „${label}" löschen?\n\nDateien in dieser Kategorie bleiben erhalten, werden aber als unbekannte Kategorie angezeigt.`)) return;
+  if (!confirm(t('confirm_cat_delete', {name: label}))) return;
   categories = categories.filter(c => c.key !== key);
   await saveCategories();
   renderCategoryNav();
@@ -1750,7 +1816,7 @@ async function deleteCategory(key) {
     const allEl = document.querySelector('[data-nav="all"]');
     if (allEl) setNav(allEl, 'all');
   }
-  showToast(`Kategorie „${label}" gelöscht`, '✓');
+  showToast(t('toast_cat_deleted', {name: label}), '✓');
 }
 
 // ─── CHIPS ────────────────────────────────────────────────────────────────────
@@ -1779,9 +1845,10 @@ function render() {
   const grid = document.getElementById('filesGrid');
   const lst  = document.getElementById('filesList');
 
+  const resultKey = files.length === 1 ? 'result_files' : 'result_files_plural';
   document.getElementById('resultInfo').innerHTML =
-    `<span>${files.length}</span> Datei${files.length !== 1 ? 'en' : ''} gefunden` +
-    (q ? ` für »${q}«` : '');
+    t(resultKey, {count: `<span>${files.length}</span>`}) +
+    (q ? t('result_for', {query: q}) : '');
 
   if (files.length === 0) {
     const empty = emptyHTML();
@@ -1871,14 +1938,14 @@ async function toggleFav(id, currentVal) {
   try {
     await api('PUT', `/api/files/${id}`, { favorite: !currentVal });
     await Promise.all([loadStats(), loadFiles()]);
-    showToast(!currentVal ? '★ Zu Favoriten hinzugefügt' : '☆ Von Favoriten entfernt', !currentVal ? '★' : '☆');
+    showToast(!currentVal ? t('toast_fav_added') : t('toast_fav_removed'), !currentVal ? '★' : '☆');
     if (openFileId === id) openModal(id);
-  } catch(e) { showToast('Fehler beim Speichern', '✕'); }
+  } catch(e) { showToast(t('toast_save_error'), '✕'); }
 }
 
 // ─── DOWNLOAD ─────────────────────────────────────────────────────────────────
 function downloadFile(id, name) {
-  showToast(`⬇ Download: ${name}`, '⬇');
+  showToast(t('toast_download', {name}), '⬇');
   window.open(`/api/files/${id}/download`, '_blank');
 }
 
@@ -1886,20 +1953,19 @@ function downloadFile(id, name) {
 async function triggerScan() {
   const btn = document.getElementById('scanBtn');
   btn.disabled = true;
-  btn.textContent = '⟳ Scanne…';
+  btn.textContent = t('btn_scanning');
   try {
     await api('POST', '/api/scan');
-    showToast('⬆ Scan gestartet – neue Dateien werden verarbeitet', '⬆');
-    // Refresh after a short delay to pick up newly discovered files
+    showToast(t('toast_scan_started'), '⬆');
     setTimeout(async () => {
       await Promise.all([loadStats(), loadFiles()]);
       btn.disabled = false;
-      btn.textContent = '⬆ Scannen';
+      btn.textContent = t('btn_scan');
     }, 3000);
   } catch(e) {
-    showToast('Scan-Fehler: ' + e.message, '✕');
+    showToast(t('toast_scan_error', {error: e.message}), '✕');
     btn.disabled = false;
-    btn.textContent = '⬆ Scannen';
+    btn.textContent = t('btn_scan');
   }
 }
 
@@ -1915,7 +1981,7 @@ async function openModal(id) {
       thumbEl.innerHTML = `
         <img src="/api/thumbnails/${f.id}" alt="${esc(f.name)}"
              onerror="this.parentElement.innerHTML='<span style=\\'font-size:72px\\'>🖨</span>'">
-        <span class="zoom-hint">⊕ Vergrößern</span>`;
+        <span class="zoom-hint">${t('modal_zoom_hint')}</span>`;
       thumbEl.onclick = () => openLightbox(`/api/thumbnails/${f.id}`, f.name);
     } else {
       thumbEl.innerHTML = '<span style="font-size:72px">🖨</span>';
@@ -1939,28 +2005,28 @@ async function openModal(id) {
     const diffColor = { easy: '#00d4aa', medium: '#ffd32a', hard: '#ff4757' }[f.difficulty] || 'var(--text)';
     document.getElementById('modalGrid').innerHTML = `
       <div class="detail-item">
-        <div class="detail-label">Dateigröße</div>
+        <div class="detail-label">${t('modal_filesize')}</div>
         <div class="detail-val accent">${fmtBytes(f.size_bytes)}</div>
       </div>
       <div class="detail-item">
-        <div class="detail-label">Hinzugefügt</div>
+        <div class="detail-label">${t('modal_added')}</div>
         <div class="detail-val">${fmtDate(f.date_added)}</div>
       </div>
       <div class="detail-item">
-        <div class="detail-label">Supports nötig</div>
+        <div class="detail-label">${t('modal_supports')}</div>
         <div class="detail-val" style="color:${f.supports_needed ? '#ff4757':'#00d4aa'}">
-          ${f.supports_needed ? '✓ Ja' : '✕ Nein'}
+          ${f.supports_needed ? t('edit_supports_yes') : t('edit_supports_no')}
         </div>
       </div>
       <div class="detail-item">
-        <div class="detail-label">Schwierigkeit</div>
-        <div class="detail-val" style="color:${diffColor}">${capitalize(f.difficulty)}</div>
+        <div class="detail-label">${t('modal_difficulty')}</div>
+        <div class="detail-val" style="color:${diffColor}">${t('diff_' + f.difficulty) || capitalize(f.difficulty)}</div>
       </div>
       ${f.tags.length ? `
       <div class="detail-item" style="grid-column:1/-1">
-        <div class="detail-label">Tags</div>
+        <div class="detail-label">${t('modal_tags')}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-          ${f.tags.map(t => `<span class="card-tag tag-misc">${esc(t)}</span>`).join('')}
+          ${f.tags.map(tag => `<span class="card-tag tag-misc">${esc(tag)}</span>`).join('')}
         </div>
       </div>` : ''}
     `;
@@ -1968,25 +2034,25 @@ async function openModal(id) {
     // Notes
     document.getElementById('modalNotes').innerHTML = `
       <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;
-                  font-family:'Space Mono',monospace;margin-bottom:10px">Notizen</div>
-      ${f.notes ? esc(f.notes) : '<em style="opacity:0.4">Keine Notizen</em>'}
+                  font-family:'Space Mono',monospace;margin-bottom:10px">${t('modal_notes')}</div>
+      ${f.notes ? esc(f.notes) : `<em style="opacity:0.4">${t('modal_notes_none')}</em>`}
     `;
 
     // Actions
     document.getElementById('modalActions').innerHTML = `
       <button class="btn btn-primary" onclick="downloadFile(${f.id}, '${esc(f.name)}'); closeModal()">
-        ⬇ Herunterladen
+        ${t('btn_download')}
       </button>
       <button class="btn btn-ghost" onclick="toggleFav(${f.id}, ${f.favorite})">
-        ${f.favorite ? '☆ Aus Favoriten' : '★ Favorit'}
+        ${f.favorite ? t('btn_favorite_remove') : t('btn_favorite_add')}
       </button>
-      <button class="btn btn-ghost" onclick="enterEditMode(currentOpenFile)">✏ Bearbeiten</button>
-      ${f.folder ? `<button class="btn btn-ghost" onclick="filterByFolder('${esc(f.folder)}')">📁 Ordner filtern</button>` : ''}
-      ${['STL','OBJ','3MF'].includes(f.format) ? `<button class="btn btn-ghost" onclick="open3DViewer(${f.id},'${f.format}','${esc(f.name)}')">◈ 3D-Ansicht</button>` : ''}
+      <button class="btn btn-ghost" onclick="enterEditMode(currentOpenFile)">${t('btn_edit')}</button>
+      ${f.folder ? `<button class="btn btn-ghost" onclick="filterByFolder('${esc(f.folder)}')">${t('btn_filter_folder')}</button>` : ''}
+      ${['STL','OBJ','3MF'].includes(f.format) ? `<button class="btn btn-ghost" onclick="open3DViewer(${f.id},'${f.format}','${esc(f.name)}')">${t('btn_view_3d')}</button>` : ''}
       <select class="status-select" onchange="setStatus(${f.id}, this.value)">
-        <option value="unprinted"  ${f.print_status==='unprinted'  ? 'selected' : ''}>◯ Nicht gedruckt</option>
-        <option value="printing"   ${f.print_status==='printing'   ? 'selected' : ''}>⟳ Wird gedruckt</option>
-        <option value="printed"    ${f.print_status==='printed'    ? 'selected' : ''}>✓ Gedruckt</option>
+        <option value="unprinted"  ${f.print_status==='unprinted'  ? 'selected' : ''}>${t('status_unprinted')}</option>
+        <option value="printing"   ${f.print_status==='printing'   ? 'selected' : ''}>${t('status_printing')}</option>
+        <option value="printed"    ${f.print_status==='printed'    ? 'selected' : ''}>${t('status_printed')}</option>
       </select>
     `;
 
@@ -2005,7 +2071,7 @@ async function openModal(id) {
         if (others.length) {
           relSection.classList.remove('hidden');
           relSection.innerHTML = `
-            <span class="related-label">📁 ${esc(f.folder.split('/').pop())} — ${others.length + 1} Dateien im Ordner</span>
+            <span class="related-label">📁 ${esc(f.folder.split('/').pop())} — ${t('modal_related', {count: others.length + 1})}</span>
             <div class="related-scroll">
               ${others.map(r => `
                 <div class="related-card" onclick="openModal(${r.id})">
@@ -2027,7 +2093,7 @@ async function openModal(id) {
 
     document.getElementById('modalOverlay').classList.add('open');
   } catch(e) {
-    showToast('Fehler beim Laden der Details', '✕');
+    showToast(t('toast_load_error'), '✕');
   }
 }
 
@@ -2053,7 +2119,7 @@ function enterEditMode(f) {
   // Supports
   const sb = document.getElementById('supportsBtn');
   sb.classList.toggle('on', f.supports_needed);
-  sb.textContent = f.supports_needed ? '✓ Ja' : '✕ Nein';
+  sb.textContent = f.supports_needed ? t('edit_supports_yes') : t('edit_supports_no');
 
   // Name
   document.getElementById('editName').value = f.name || '';
@@ -2086,12 +2152,12 @@ async function saveEdit() {
       await api('POST', `/api/files/${editFile.id}/rename`, { new_name: name });
     }
     await api('PUT', `/api/files/${editFile.id}`, { category, tags: editTags, difficulty, supports_needed, notes });
-    showToast('✓ Gespeichert', '✓');
+    showToast(t('toast_saved'), '✓');
     const id = editFile.id;
     cancelEdit();
     await openModal(id);
     loadFiles(); loadStats();
-  } catch(e) { showToast('Fehler beim Speichern', '✕'); }
+  } catch(e) { showToast(t('toast_save_error'), '✕'); }
 }
 
 function selectCat(el) {
@@ -2115,18 +2181,18 @@ function removeTag(idx) { editTags.splice(idx, 1); renderEditTags(); }
 
 function renderEditTags() {
   document.getElementById('tagChipsEdit').innerHTML = editTags.length
-    ? editTags.map((t, i) =>
-        `<span class="tag-chip-e">${esc(t)}<span class="rm" onclick="removeTag(${i})">×</span></span>`
+    ? editTags.map((tag, i) =>
+        `<span class="tag-chip-e">${esc(tag)}<span class="rm" onclick="removeTag(${i})">×</span></span>`
       ).join('')
-    : '<span style="color:var(--text-muted);font-size:12px">Noch keine Tags</span>';
+    : `<span style="color:var(--text-muted);font-size:12px">${t('modal_tags_none')}</span>`;
 }
 
 async function setStatus(id, status) {
   try {
     await api('PUT', `/api/files/${id}`, { print_status: status });
-    const labels = { unprinted: 'Nicht gedruckt', printing: 'Wird gedruckt', printed: 'Gedruckt' };
-    showToast(`Status: ${labels[status]}`, '✓');
-  } catch(e) { showToast('Fehler beim Speichern', '✕'); }
+    const labels = { unprinted: t('status_label_unprinted'), printing: t('status_label_printing'), printed: t('status_label_printed') };
+    showToast(t('toast_status', {status: labels[status]}), '✓');
+  } catch(e) { showToast(t('toast_save_error'), '✕'); }
 }
 
 function closeModal() {
@@ -2182,23 +2248,23 @@ function loadingHTML() {
     <span class="loading-dot"></span>
     <span class="loading-dot"></span>
     <span class="loading-dot"></span>
-    <div style="margin-top:16px">Lade Dateien…</div>
+    <div style="margin-top:16px">${t('loading_files')}</div>
   </div>`;
 }
 
 function emptyHTML() {
   return `<div class="empty-state">
     <div class="empty-icon">◈</div>
-    <div class="empty-title">Keine Dateien gefunden</div>
-    <div class="empty-sub">Versuche einen anderen Suchbegriff, Filter – oder starte einen Scan</div>
+    <div class="empty-title">${t('empty_title')}</div>
+    <div class="empty-sub">${t('empty_sub')}</div>
   </div>`;
 }
 
 function errorHTML() {
   return `<div class="empty-state">
     <div class="empty-icon">✕</div>
-    <div class="empty-title">Verbindungsfehler</div>
-    <div class="empty-sub">Backend nicht erreichbar. Prüfe ob PrintVault läuft.</div>
+    <div class="empty-title">${t('error_title')}</div>
+    <div class="empty-sub">${t('error_sub')}</div>
   </div>`;
 }
 
