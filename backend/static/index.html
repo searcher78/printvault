@@ -1760,7 +1760,7 @@
       <div class="import-drop-hint" data-i18n="import_drop_hint">ZIP, RAR, 7Z, TAR.GZ hier ablegen oder klicken</div>
       <div class="import-drop-accepted" data-i18n="import_accepted">.zip .rar .7z .tar .tar.gz .tar.bz2 .tar.xz</div>
       <input type="file" id="importFileInput" style="display:none"
-             accept=".zip,.rar,.7z,.tar,.gz,.bz2,.xz"
+             accept=".zip,.rar,.7z,.tar,.gz,.bz2,.xz,application/zip,application/vnd.rar,application/x-rar-compressed,application/x-7z-compressed,application/x-tar,application/gzip,application/octet-stream"
              onchange="handleImportFileSelect(this)">
     </div>
     <div id="importSelectedFile" style="display:none;margin-top:10px;font-size:13px;color:var(--text-dim);word-break:break-all"></div>
