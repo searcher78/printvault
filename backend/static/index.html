@@ -1801,6 +1801,7 @@ let files              = [];
 let searchTimer        = null;
 let stats              = {};
 let folderTreeExpanded = new Set();  // paths that are expanded in the tree
+let duplicateGroupsCache = null;     // cached result from /api/files/duplicates
 let categories   = [
   {key:'miniatures', label:'Miniaturen', icon:'⚔'},
   {key:'tools',      label:'Werkzeug',   icon:'🔧'},
@@ -3105,7 +3106,7 @@ async function loadDuplicates() {
   const view = document.getElementById('duplicatesView');
   view.innerHTML = loadingHTML();
   try {
-    const groups = await api('GET', '/api/files/duplicates');
+    const groups = duplicateGroupsCache ?? await api('GET', '/api/files/duplicates');
     if (!groups.length) {
       view.innerHTML = `<div class="empty-state">
         <div class="empty-icon">⊕</div>
@@ -3142,6 +3143,7 @@ async function loadDuplicates() {
 async function loadDuplicateCount() {
   try {
     const groups = await api('GET', '/api/files/duplicates');
+    duplicateGroupsCache = groups;
     const totalDupes = groups.reduce((sum, g) => sum + g.count, 0);
     const el = document.getElementById('navDuplicates');
     if (totalDupes > 0) {
