@@ -1272,6 +1272,41 @@
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
   }
+  .dup-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .dup-group-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-muted);
+  }
+  .dup-badge {
+    background: rgba(255,211,42,0.15); color: var(--yellow);
+    border: 1px solid rgba(255,211,42,0.3);
+    border-radius: 4px; padding: 2px 8px; font-size: 11px;
+  }
+  .dup-file-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px; margin-bottom: 6px;
+    background: var(--surface2);
+  }
+  .dup-thumb {
+    width: 48px; height: 48px; border-radius: 6px;
+    object-fit: cover; background: var(--surface3); flex-shrink: 0;
+  }
+  .dup-thumb-placeholder {
+    width: 48px; height: 48px; border-radius: 6px;
+    background: var(--surface3); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--text-muted);
+  }
+  .dup-file-info { flex: 1; min-width: 0; }
+  .dup-file-name { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dup-file-path { font-size: 11px; color: var(--text-muted); font-family: 'Space Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   .set-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1344,6 +1379,11 @@
     <div class="nav-item" data-nav="sets" onclick="setNav(this,'sets')">
       <span class="icon">◈</span> <span data-i18n="nav_sets">Sets</span>
       <span class="count" id="cnt-sets">—</span>
+    </div>
+    <div class="nav-item" id="navDuplicates" data-nav="duplicates" onclick="setNav(this,'duplicates')" style="display:none">
+      <span class="icon" style="color:var(--yellow)">⊕</span>
+      <span style="color:var(--yellow)">Duplikate</span>
+      <span class="count" id="cnt-duplicates" style="background:rgba(255,211,42,0.15);color:var(--yellow)">—</span>
     </div>
     <div class="nav-item" id="navMissing" data-nav="missing" onclick="setNav(this,'missing')" style="display:none">
       <span class="icon" style="color:var(--red)">⚠</span>
@@ -1450,6 +1490,9 @@
 
     <!-- SETS OVERVIEW -->
     <div class="sets-grid hidden" id="setsGrid"></div>
+
+    <!-- DUPLICATES VIEW -->
+    <div id="duplicatesView" class="hidden"></div>
 
     <!-- FORMAT FILTER CHIPS -->
     <div class="filter-row">
@@ -1798,7 +1841,7 @@ async function init() {
   await loadCategories();
   renderCategoryNav();
   renderCatPicker();
-  await Promise.all([loadStats(), loadFiles(), loadFolders(), loadSetsCount()]);
+  await Promise.all([loadStats(), loadFiles(), loadFolders(), loadSetsCount(), loadDuplicateCount()]);
 }
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
@@ -1872,11 +1915,12 @@ function setNav(el, nav) {
   hideFolderHero();
 
   const staticTitles = {
-    'all':     t('title_all'),
-    'fav':     t('title_favorites'),
-    'recent':  t('title_recent'),
-    'missing': `<span style="color:var(--red)">${t('nav_missing')}</span>`,
-    'sets':    `<span>${t('nav_sets')}</span>`,
+    'all':        t('title_all'),
+    'fav':        t('title_favorites'),
+    'recent':     t('title_recent'),
+    'missing':    `<span style="color:var(--red)">${t('nav_missing')}</span>`,
+    'sets':       `<span>${t('nav_sets')}</span>`,
+    'duplicates': `<span style="color:var(--yellow)">Duplikate</span>`,
   };
   let title = staticTitles[nav];
   if (!title && nav.startsWith('cat:')) {
@@ -1885,17 +1929,21 @@ function setNav(el, nav) {
   }
   document.getElementById('pageTitle').innerHTML = title || t('nav_all');
 
-  // Show/hide sets overview vs file grid
-  const isSets = nav === 'sets';
+  const isSets  = nav === 'sets';
+  const isDupes = nav === 'duplicates';
+  const isSpecial = isSets || isDupes;
+
   document.getElementById('setsGrid').classList.toggle('hidden', !isSets);
-  document.getElementById('filesGrid').classList.toggle('hidden', isSets);
-  document.getElementById('filesList').classList.toggle('hidden', isSets || currentView !== 'list');
-  document.querySelector('.filter-row').classList.toggle('hidden', isSets);
-  document.getElementById('resultInfo').classList.toggle('hidden', isSets);
-  document.getElementById('sortSelect').closest('.view-controls').querySelector('.view-toggle').style.display = isSets ? 'none' : '';
+  document.getElementById('duplicatesView').classList.toggle('hidden', !isDupes);
+  document.getElementById('filesGrid').classList.toggle('hidden', isSpecial);
+  document.getElementById('filesList').classList.toggle('hidden', isSpecial || currentView !== 'list');
+  document.querySelector('.filter-row').classList.toggle('hidden', isSpecial);
+  document.getElementById('resultInfo').classList.toggle('hidden', isSpecial);
+  document.getElementById('sortSelect').closest('.view-controls').querySelector('.view-toggle').style.display = isSpecial ? 'none' : '';
   hideSetBars();
 
-  if (isSets) { loadSetsView(); return; }
+  if (isSets)  { loadSetsView();     return; }
+  if (isDupes) { loadDuplicates();   return; }
   loadFiles();
 }
 
@@ -3050,6 +3098,59 @@ function errorHTML() {
     <div class="empty-title">${t('error_title')}</div>
     <div class="empty-sub">${t('error_sub')}</div>
   </div>`;
+}
+
+// ─── DUPLICATES ───────────────────────────────────────────────────────────────
+async function loadDuplicates() {
+  const view = document.getElementById('duplicatesView');
+  view.innerHTML = loadingHTML();
+  try {
+    const groups = await api('GET', '/api/files/duplicates');
+    if (!groups.length) {
+      view.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">⊕</div>
+        <div class="empty-title">Keine Duplikate gefunden</div>
+        <div class="empty-sub">Alle Dateien haben einen eindeutigen Inhalt.</div>
+      </div>`;
+      return;
+    }
+
+    view.innerHTML = groups.map(g => `
+      <div class="dup-group">
+        <div class="dup-group-header">
+          <span class="dup-badge">⊕ ${g.count}× identisch</span>
+          <span>Hash: ${g.hash.slice(0,12)}…</span>
+          <span>${formatBytes(g.files[0].size_bytes)}</span>
+        </div>
+        ${g.files.map(f => `
+          <div class="dup-file-row">
+            ${f.thumbnail_path
+              ? `<img class="dup-thumb" src="/api/thumbnails/${f.id}" onerror="this.style.display='none'">`
+              : `<div class="dup-thumb-placeholder">◈</div>`}
+            <div class="dup-file-info">
+              <div class="dup-file-name">${esc(f.name)}.${f.format.toLowerCase()}</div>
+              <div class="dup-file-path">${esc(f.path)}</div>
+            </div>
+            <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="openModal(${f.id})">Details</button>
+          </div>`).join('')}
+      </div>`).join('');
+  } catch(e) {
+    view.innerHTML = errorHTML();
+  }
+}
+
+async function loadDuplicateCount() {
+  try {
+    const groups = await api('GET', '/api/files/duplicates');
+    const totalDupes = groups.reduce((sum, g) => sum + g.count, 0);
+    const el = document.getElementById('navDuplicates');
+    if (totalDupes > 0) {
+      el.style.display = '';
+      document.getElementById('cnt-duplicates').textContent = totalDupes;
+    } else {
+      el.style.display = 'none';
+    }
+  } catch(e) { /* ignorieren */ }
 }
 
 // ─── MOVE FOLDER UP ───────────────────────────────────────────────────────────
