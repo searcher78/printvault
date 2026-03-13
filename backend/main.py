@@ -1,4 +1,5 @@
 import logging
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,11 +15,42 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s – %(message)s",
 )
 
+logger = logging.getLogger(__name__)
+
+
+def _resume_pending() -> None:
+    """Nach Container-Neustart unterbrochene Verarbeitung fortsetzen.
+
+    Wenn der Container während des Thumbnail-Renderings neu gestartet wird,
+    bleiben Dateien mit thumbnail_path=None in der DB. Diese Funktion holt
+    das Rendering (und anschließend das KI-Tagging) für alle solchen Dateien
+    nach. Läuft als Daemon-Thread, blockiert den Server-Start nicht.
+    """
+    from sqlmodel import Session, select
+    from database import engine
+    from models import PrintFile
+    from services.scanner import _process_file
+
+    with Session(engine) as session:
+        pending = session.exec(
+            select(PrintFile).where(PrintFile.thumbnail_path == None)
+        ).all()
+        ids = [f.id for f in pending]
+
+    if not ids:
+        return
+
+    logger.info("Startup: %d Dateien ohne Thumbnail – starte Nachverarbeitung", len(ids))
+    for file_id in ids:
+        _process_file(file_id)
+    logger.info("Startup-Nachverarbeitung abgeschlossen")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     start_watcher()
+    threading.Thread(target=_resume_pending, daemon=True).start()
     yield
     stop_watcher()
 

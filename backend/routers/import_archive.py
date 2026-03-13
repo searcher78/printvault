@@ -100,7 +100,10 @@ async def import_archive(
     new_ids: list[int] = []
 
     with Session(engine) as session:
-        # Nach der Extraktion neu laden – Watcher kann Dateien bereits registriert haben
+        # existing_paths NACH der Extraktion laden: der Watchdog-Watcher läuft
+        # parallel und kann Dateien bereits in die DB eingetragen haben, während
+        # das Archiv entpackt wurde. expire_all() verwirft gecachte Objekte,
+        # damit ein frisches SELECT die aktuellen DB-Inhalte liefert.
         session.expire_all()
         existing_paths = {f.path for f in session.exec(select(PrintFile)).all()}
         for path in found_files:
@@ -109,7 +112,11 @@ async def import_archive(
                 skipped += 1
                 continue
             try:
-                with session.begin_nested():  # Savepoint: Fehler rollt nur diesen Eintrag zurück
+                # begin_nested() öffnet einen SQLite-Savepoint. Tritt ein
+                # IntegrityError auf (z.B. UNIQUE-Verletzung durch Race Condition
+                # mit dem Watcher), wird nur dieser eine Eintrag zurückgerollt –
+                # die übrigen Dateien der Schleife sind nicht betroffen.
+                with session.begin_nested():
                     pf = PrintFile(
                         name=path.stem,
                         path=str_path,

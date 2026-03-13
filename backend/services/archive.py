@@ -5,12 +5,16 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Dict statt Set, damit .get() den Format-String liefert (z.B. "STL")
 SUPPORTED_3D = {".stl": "STL", ".3mf": "3MF", ".obj": "OBJ", ".lys": "LYS"}
 
 ARCHIVE_SUFFIXES = {".zip", ".tar", ".gz", ".bz2", ".xz", ".tgz", ".tbz", ".7z", ".rar"}
 
 
 def is_archive(filename: str) -> bool:
+    """Prüft anhand der Dateiendung, ob es sich um ein unterstütztes Archiv handelt.
+    Compound-Suffixe (.tar.gz etc.) werden explizit abgefangen, da .gz allein
+    auch für einzelne gzip-Dateien steht."""
     name = filename.lower()
     return (
         any(name.endswith(s) for s in ARCHIVE_SUFFIXES)
@@ -44,7 +48,13 @@ def extract_archive(archive_path: Path, dest_dir: Path) -> list[Path]:
 
 
 def _safe_target(dest: Path, member_path: str) -> Path | None:
-    """ZIP-Slip-Schutz: None wenn der Pfad außerhalb von dest landet."""
+    """ZIP-Slip-Schutz: verhindert Path-Traversal-Angriffe in Archiven.
+
+    Schadhafter Archive können Pfade wie „../../etc/passwd" enthalten, die
+    beim Entpacken Dateien außerhalb des Zielordners schreiben würden.
+    resolve() normalisiert „.." und relative_to() wirft ValueError, wenn
+    der Zielpfad außerhalb von dest liegt.
+    """
     try:
         target = (dest / member_path).resolve()
         target.relative_to(dest.resolve())
@@ -93,6 +103,10 @@ def _extract_7z(archive_path: Path, dest_dir: Path) -> None:
 
 
 def _extract_rar(archive_path: Path, dest_dir: Path) -> None:
+    # Die Python-Bibliothek „rarfile" nutzt intern die proprietäre „unrar"-Binary
+    # mit einer anderen Befehlssyntax als das freie „unrar-free 0.3.1".
+    # Direkter subprocess-Aufruf von unrar-free ist zuverlässiger und
+    # kompatibel mit RAR v4/v5 ohne Lizenzproblem.
     import subprocess
     result = subprocess.run(
         ["unrar-free", "-x", "-f", str(archive_path), str(dest_dir) + "/"],

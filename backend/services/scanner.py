@@ -78,7 +78,12 @@ def run_scan() -> None:
 
 
 def _process_file(file_id: int) -> None:
-    """Render thumbnail then run AI tagging for a single file."""
+    """Thumbnail rendern, dann KI-Tagging für eine einzelne Datei ausführen.
+
+    Zweistufig: erst Thumbnail speichern (eigener Commit), dann KI aufrufen.
+    So bleibt das Thumbnail erhalten, auch wenn die KI-Anfrage fehlschlägt.
+    ai_processed=False signalisiert beim nächsten Scan einen Retry.
+    """
     from services.thumbnail import generate_thumbnail
     from services.ai_tagger import tag_file
 
@@ -94,6 +99,7 @@ def _process_file(file_id: int) -> None:
             session.commit()
             session.refresh(file)
 
+        # KI nur aufrufen wenn Thumbnail vorhanden – Qwen2.5-VL braucht das Bild
         if not file.ai_processed and thumbnail_path:
             result = tag_file(file.path, thumbnail_path)
             if result:
@@ -109,7 +115,13 @@ def _process_file(file_id: int) -> None:
 
 
 def reprocess_thumbnails() -> None:
-    """Re-render thumbnails for all files (force, regardless of existing thumbnail)."""
+    """Alle Thumbnails neu rendern (erzwingt Neuberechnung, unabhängig vom Ist-Stand).
+
+    Wird nach Änderungen am Renderer aufgerufen (POST /api/reprocess).
+    Jede Datei bekommt eine eigene Session + gc.collect(), um den
+    Speicher des matplotlib/numpy-Renderers nach jedem Bild freizugeben
+    und einem OOM-Kill bei großen Bibliotheken vorzubeugen.
+    """
     import gc
     from services.thumbnail import generate_thumbnail
 
