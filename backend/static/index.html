@@ -3118,6 +3118,8 @@ function renderDuplicatesView(groups) {
         <span class="dup-badge">⊕ ${g.count}× identisch</span>
         <span>Hash: ${(g.hash || '').slice(0,12)}…</span>
         <span>${fmtBytes((g.files[0] || {}).size_bytes || 0)}</span>
+        <button class="btn btn-ghost" style="font-size:12px;margin-left:auto;color:var(--red);border-color:var(--red)"
+                onclick="keepOnlyFirst(${gi})">🗑 Alle außer erste löschen</button>
       </div>
       ${(g.files || []).map((f, fi) => `
         <div class="dup-file-row" id="dupRow${gi}_${fi}">
@@ -3130,8 +3132,10 @@ function renderDuplicatesView(groups) {
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
             <button class="btn btn-ghost" style="font-size:12px" onclick="openModal(${f.id})">Details</button>
+            <button class="btn btn-ghost" style="font-size:12px;color:var(--accent);border-color:var(--accent)"
+                    onclick="keepOnly(${gi}, ${fi})">✓ Diese behalten</button>
             <button class="btn btn-ghost" style="font-size:12px;color:var(--red);border-color:var(--red)"
-                    onclick="deleteDuplicate(${f.id}, ${gi}, ${fi})">🗑 Löschen</button>
+                    onclick="deleteDuplicate(${f.id}, ${gi}, ${fi})">🗑</button>
           </div>
         </div>`).join('')}
     </div>`).join('');
@@ -3147,6 +3151,46 @@ async function loadDuplicates() {
     console.error('loadDuplicates error:', e);
     view.innerHTML = errorHTML();
   }
+}
+
+async function keepOnly(groupIdx, keepIdx) {
+  const g = duplicateGroupsCache?.[groupIdx];
+  if (!g) return;
+  const toDelete = g.files.filter((_, i) => i !== keepIdx);
+  if (!confirm(`${toDelete.length} Datei(en) löschen und nur diese eine behalten?`)) return;
+  await _deleteMultipleFromGroup(groupIdx, toDelete.map(f => f.id));
+}
+
+async function keepOnlyFirst(groupIdx) {
+  const g = duplicateGroupsCache?.[groupIdx];
+  if (!g) return;
+  const toDelete = g.files.slice(1);
+  if (!confirm(`${toDelete.length} Kopie(n) löschen, erste Datei behalten?`)) return;
+  await _deleteMultipleFromGroup(groupIdx, toDelete.map(f => f.id));
+}
+
+async function _deleteMultipleFromGroup(groupIdx, fileIds) {
+  let failed = 0;
+  for (const id of fileIds) {
+    try { await api('DELETE', `/api/files/${id}`); }
+    catch(e) { failed++; }
+  }
+  // Cache aktualisieren: nur Dateien ohne gelöschte IDs behalten
+  const deleted = new Set(fileIds);
+  duplicateGroupsCache[groupIdx].files = duplicateGroupsCache[groupIdx].files.filter(f => !deleted.has(f.id));
+  duplicateGroupsCache[groupIdx].count = duplicateGroupsCache[groupIdx].files.length;
+  if (duplicateGroupsCache[groupIdx].files.length < 2) {
+    duplicateGroupsCache.splice(groupIdx, 1);
+  }
+  const total = duplicateGroupsCache.reduce((s, g) => s + g.count, 0);
+  if (total > 0) {
+    document.getElementById('cnt-duplicates').textContent = total;
+  } else {
+    document.getElementById('navDuplicates').style.display = 'none';
+    setNav(document.querySelector('[data-nav="all"]'), 'all');
+  }
+  renderDuplicatesView(duplicateGroupsCache);
+  showToast(failed ? `${fileIds.length - failed} gelöscht, ${failed} Fehler` : `${fileIds.length} Dateien gelöscht`);
 }
 
 async function deleteDuplicate(fileId, groupIdx, fileIdx) {
