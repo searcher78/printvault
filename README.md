@@ -28,73 +28,60 @@ A self-hosted 3D print file manager for Unraid (and any Docker host). Scans a lo
 
 ---
 
-## Setup on Unraid
+## Installation on Unraid
 
 ### Prerequisites
 
-- Unraid with the **Community Applications** plugin
-- **Docker** enabled on Unraid
+- Unraid with **Docker** enabled
 - An **Ollama** instance running somewhere on your local network (can be another machine)
   - Model pulled: `ollama pull qwen2.5vl:7b`
 
 ---
 
-### 1. Clone the repository
+### 1. Add Container via Unraid Docker UI
 
-Open a terminal on your Unraid server (or SSH into it):
+Go to **Docker → Add Container** and fill in the following:
 
-```bash
-cd /mnt/user/appdata
-git clone https://github.com/searcher78/printvault.git
-cd printvault
-```
+**Basic settings**
 
----
+| Field | Value |
+|---|---|
+| Name | `printvault` |
+| Repository | `ghcr.io/searcher78/printvault:latest` |
+| Network Type | `Bridge` |
 
-### 2. Create the `.env` file
+**Port mapping**
 
-```bash
-cp .env.example .env
-nano .env
-```
+| Host Port | Container Port |
+|---|---|
+| `8765` | `8000` |
 
-Set your Ollama address and model:
+**Volume mappings**
 
-```env
-OLLAMA_BASE_URL=http://192.168.1.x:11434
-OLLAMA_MODEL=qwen2.5vl:7b
-```
+| Host path | Container path | Description |
+|---|---|---|
+| `/mnt/user/3dprint` | `/files` | Your 3D print files share (adjust path as needed) |
+| `/mnt/user/appdata/printvault/db` | `/app/data/db` | SQLite database (persists across updates) |
+| `/mnt/user/appdata/printvault/thumbnails` | `/app/data/thumbnails` | Generated preview images |
 
----
+**Environment variables**
 
-### 3. Edit `docker-compose.yml`
+| Variable | Value |
+|---|---|
+| `FILES_DIR` | `/files` |
+| `IMPORT_DIR` | `/files/imported` |
+| `OLLAMA_BASE_URL` | `http://192.168.1.x:11434` ← your Ollama IP |
+| `OLLAMA_MODEL` | `qwen2.5vl:7b` |
+| `THUMBNAIL_DIR` | `/app/data/thumbnails` |
+| `DB_PATH` | `/app/data/db/printvault.db` |
 
-Open `docker-compose.yml` and update the volume path to point to your 3D print files share:
-
-```yaml
-volumes:
-  - /mnt/user/3dprint:/files   # <-- change to your actual share path
-  - ./data/db:/app/data/db
-  - ./data/thumbnails:/app/data/thumbnails
-```
-
-The volume is mounted read-write to allow renaming files and folders from the UI.
+Click **Apply**. PrintVault is now available at `http://<your-unraid-ip>:8765`.
 
 ---
 
-### 4. Start the stack
+### 2. Trigger the initial scan
 
-```bash
-docker compose up -d --build
-```
-
-PrintVault is now available at `http://<your-unraid-ip>:8765`.
-
----
-
-### 5. Trigger the initial scan
-
-Open the web UI and click **Scan** in the top bar, or call the API directly:
+Open the web UI and click **Scan** in the top bar, or call the API:
 
 ```bash
 curl -X POST http://<your-unraid-ip>:8765/api/scan
@@ -102,26 +89,36 @@ curl -X POST http://<your-unraid-ip>:8765/api/scan
 
 The scanner will:
 1. Find all STL, 3MF, and OBJ files in your share
-2. Render a thumbnail for each file
+2. Render a thumbnail for each file (CPU only, no GPU required)
 3. Send thumbnails to Ollama for AI categorization
 
-This may take a while depending on the number of files. Progress is visible in the Docker logs:
+This may take a while depending on the number of files. Check progress in the Unraid Docker log viewer or via:
 
 ```bash
-docker compose logs -f
+docker logs -f printvault
 ```
 
 ---
 
-## Updating
+### Updating
+
+In the Unraid Docker UI, click the container icon next to **printvault** and select **Update** — or enable **Watchtower** for automatic updates when a new image is published to `ghcr.io/searcher78/printvault:latest`.
+
+---
+
+### Alternative: docker-compose
+
+If you prefer to run PrintVault via the terminal instead of the Docker UI:
 
 ```bash
-cd /mnt/user/appdata/printvault
-git pull
-docker compose up -d --build
+cd /mnt/user/appdata
+git clone https://github.com/searcher78/printvault.git
+cd printvault
+cp .env.example .env
+# Edit .env: set OLLAMA_BASE_URL and OLLAMA_MODEL
+nano .env
+docker compose up -d
 ```
-
-Or use **Watchtower** to update automatically when a new image is published to `ghcr.io/searcher78/printvault:latest`.
 
 ---
 
