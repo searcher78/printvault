@@ -5,10 +5,20 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from database import get_session
 from models import PrintFile, PrintFileRead, PrintFileUpdate
+
+
+class BatchUpdate(BaseModel):
+    ids: list[int]
+    category: Optional[str] = None       # wenn gesetzt: Kategorie für alle überschreiben
+    tags_add: list[str] = []             # Tags zu bestehenden hinzufügen
+    tags_remove: list[str] = []          # Tags aus bestehenden entfernen
+    difficulty: Optional[str] = None     # wenn gesetzt: Schwierigkeit überschreiben
+    supports_needed: Optional[bool] = None  # wenn gesetzt: Supports-Flag überschreiben
 
 router = APIRouter()
 
@@ -141,6 +151,44 @@ def list_files(
     query = query.offset(offset).limit(limit)
 
     return [PrintFileRead.from_db(f) for f in session.exec(query).all()]
+
+
+@router.put("/files/batch")
+def batch_update_files(update: BatchUpdate, session: Session = Depends(get_session)):
+    """Mehrere Dateien auf einmal bearbeiten.
+
+    Nur gesetzte Felder werden überschrieben. tags_add/tags_remove werden
+    auf die bestehenden Tags jeder Datei angewendet (kein Komplettersatz).
+    """
+    from datetime import datetime
+    updated = 0
+    tags_add_set    = {t.strip().lower() for t in update.tags_add    if t.strip()}
+    tags_remove_set = {t.strip().lower() for t in update.tags_remove if t.strip()}
+
+    for file_id in update.ids:
+        file = session.get(PrintFile, file_id)
+        if not file:
+            continue
+
+        if update.category is not None:
+            file.category = update.category
+        if update.difficulty is not None:
+            file.difficulty = update.difficulty
+        if update.supports_needed is not None:
+            file.supports_needed = update.supports_needed
+
+        if tags_add_set or tags_remove_set:
+            current = set(json.loads(file.tags or "[]"))
+            current |= tags_add_set
+            current -= tags_remove_set
+            file.tags = json.dumps(sorted(current))
+
+        file.date_modified = datetime.utcnow()
+        session.add(file)
+        updated += 1
+
+    session.commit()
+    return {"updated": updated}
 
 
 @router.get("/files/{file_id}", response_model=PrintFileRead)

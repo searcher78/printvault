@@ -1438,8 +1438,9 @@
       </div>
     </div>
     <!-- SAVE AS SET button (shown when folder is active but not yet a set) -->
-    <div id="setCreateBar" class="hidden" style="margin-bottom:14px">
+    <div id="setCreateBar" class="hidden" style="margin-bottom:14px;display:flex;gap:8px;align-items:center">
       <button class="btn btn-ghost" style="font-size:12px" onclick="openSetEditor()" data-i18n="btn_save_as_set">◈ Als Set speichern</button>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="openBatchEdit()">⊟ Batch bearbeiten</button>
     </div>
 
     <!-- SETS OVERVIEW -->
@@ -1635,6 +1636,48 @@
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
       <button class="btn btn-ghost" onclick="closeImportDialog()" data-i18n="btn_cancel">Abbrechen</button>
       <button class="btn btn-primary" id="importStartBtn" onclick="startImport()" disabled data-i18n="import_btn_start">Importieren</button>
+    </div>
+  </div>
+</div>
+
+<!-- BATCH EDIT DIALOG -->
+<div class="locate-overlay hidden" id="batchEditOverlay" onclick="if(event.target===this)closeBatchEdit()">
+  <div class="locate-dialog" style="width:520px;max-height:90vh;overflow-y:auto">
+    <h3 id="batchEditTitle" style="margin-bottom:4px">Batch bearbeiten</h3>
+    <p id="batchEditSubtitle" style="color:var(--text-muted);font-size:12px;margin-bottom:20px"></p>
+
+    <!-- Kategorie -->
+    <div style="margin-bottom:18px">
+      <label class="edit-section-label">Kategorie <span style="color:var(--text-muted);font-weight:400">(leer = unverändert)</span></label>
+      <div id="batchCatBtns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+    </div>
+
+    <!-- Tags hinzufügen -->
+    <div style="margin-bottom:18px">
+      <label class="edit-section-label">Tags hinzufügen</label>
+      <div id="batchTagsAddList" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 8px"></div>
+      <div style="display:flex;gap:8px">
+        <input class="tag-add-input" id="batchTagAddInput" style="flex:1" placeholder="Tag eingeben…"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addBatchTag('add')}">
+        <button class="btn btn-ghost" style="font-size:13px" onclick="addBatchTag('add')">+</button>
+      </div>
+    </div>
+
+    <!-- Tags entfernen -->
+    <div style="margin-bottom:18px">
+      <label class="edit-section-label">Tags entfernen</label>
+      <div id="batchTagsRemoveList" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 8px"></div>
+      <div style="display:flex;gap:8px">
+        <input class="tag-add-input" id="batchTagRemoveInput" style="flex:1" placeholder="Tag eingeben…"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addBatchTag('remove')}">
+        <button class="btn btn-ghost" style="font-size:13px" onclick="addBatchTag('remove')">+</button>
+      </div>
+      <div id="batchExistingTags" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px"></div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;border-top:1px solid var(--border);padding-top:16px">
+      <button class="btn btn-ghost" onclick="closeBatchEdit()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="applyBatchEdit()" id="batchApplyBtn">✓ Anwenden</button>
     </div>
   </div>
 </div>
@@ -2998,6 +3041,132 @@ function errorHTML() {
     <div class="empty-title">${t('error_title')}</div>
     <div class="empty-sub">${t('error_sub')}</div>
   </div>`;
+}
+
+// ─── BATCH EDIT ───────────────────────────────────────────────────────────────
+let batchCategory   = null;
+let batchTagsAdd    = [];
+let batchTagsRemove = [];
+let batchFileIds    = [];
+
+async function openBatchEdit() {
+  if (!activeFolder) return;
+
+  // Alle Dateien im aktuellen Ordner laden
+  const res = await fetch(`/api/files?folder=${encodeURIComponent(activeFolder)}&limit=9999`);
+  const folderFiles = await res.json();
+  batchFileIds  = folderFiles.map(f => f.id);
+  batchCategory   = null;
+  batchTagsAdd    = [];
+  batchTagsRemove = [];
+
+  const folderName = activeFolder.split('/').pop();
+  document.getElementById('batchEditTitle').textContent    = `Batch bearbeiten: ${folderName}`;
+  document.getElementById('batchEditSubtitle').textContent = `${batchFileIds.length} Dateien · Nur aktivierte Felder werden geändert`;
+
+  // Kategorie-Buttons rendern
+  const catWrap = document.getElementById('batchCatBtns');
+  catWrap.innerHTML = categories.map(c => {
+    const col = catColor(c.key);
+    return `<button class="cat-btn" id="batchCat_${c.key}"
+      style="background:${col.bg};color:${col.text};border-color:${col.text}40"
+      onclick="selectBatchCat('${c.key}')">${c.icon} ${c.label}</button>`;
+  }).join('');
+
+  // Vorhandene Tags aus allen Dateien sammeln und als Schnellauswahl anzeigen
+  const allTags = {};
+  folderFiles.forEach(f => {
+    (f.tags || []).forEach(tag => { allTags[tag] = (allTags[tag] || 0) + 1; });
+  });
+  const existingWrap = document.getElementById('batchExistingTags');
+  existingWrap.innerHTML = '';
+  if (Object.keys(allTags).length) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'width:100%;font-size:11px;color:var(--text-muted);margin-bottom:4px';
+    hint.textContent = 'Vorhandene Tags (klicken zum Entfernen):';
+    existingWrap.appendChild(hint);
+    Object.entries(allTags).sort().forEach(([tag, count]) => {
+      const btn = document.createElement('button');
+      btn.className = 'tag-chip-e';
+      btn.style.cssText = 'cursor:pointer';
+      btn.innerHTML = `${tag} <span style="opacity:.5">${count}×</span>`;
+      btn.onclick = () => {
+        document.getElementById('batchTagRemoveInput').value = tag;
+        addBatchTag('remove');
+      };
+      existingWrap.appendChild(btn);
+    });
+  }
+
+  renderBatchTags();
+  document.getElementById('batchEditOverlay').classList.remove('hidden');
+}
+
+function closeBatchEdit() {
+  document.getElementById('batchEditOverlay').classList.add('hidden');
+}
+
+function selectBatchCat(key) {
+  // Toggle: nochmal klicken hebt Auswahl auf
+  batchCategory = (batchCategory === key) ? null : key;
+  document.querySelectorAll('#batchCatBtns .cat-btn').forEach(btn => {
+    const k = btn.id.replace('batchCat_', '');
+    btn.classList.toggle('sel', k === batchCategory);
+  });
+}
+
+function addBatchTag(mode) {
+  const inputId = mode === 'add' ? 'batchTagAddInput' : 'batchTagRemoveInput';
+  const val = document.getElementById(inputId).value.trim().toLowerCase();
+  if (!val) return;
+  const arr = mode === 'add' ? batchTagsAdd : batchTagsRemove;
+  if (!arr.includes(val)) { arr.push(val); renderBatchTags(); }
+  document.getElementById(inputId).value = '';
+}
+
+function removeBatchTag(mode, tag) {
+  if (mode === 'add')    batchTagsAdd    = batchTagsAdd.filter(t => t !== tag);
+  if (mode === 'remove') batchTagsRemove = batchTagsRemove.filter(t => t !== tag);
+  renderBatchTags();
+}
+
+function renderBatchTags() {
+  ['add','remove'].forEach(mode => {
+    const arr  = mode === 'add' ? batchTagsAdd : batchTagsRemove;
+    const wrap = document.getElementById(mode === 'add' ? 'batchTagsAddList' : 'batchTagsRemoveList');
+    const col  = mode === 'add' ? 'var(--accent)' : 'var(--red)';
+    wrap.innerHTML = arr.map(t =>
+      `<span class="tag-chip-e" style="border-color:${col}40;color:${col}">
+        ${t} <span class="rm" onclick="removeBatchTag('${mode}','${t}')">×</span>
+      </span>`
+    ).join('');
+  });
+}
+
+async function applyBatchEdit() {
+  if (!batchFileIds.length) return;
+  if (!batchCategory && !batchTagsAdd.length && !batchTagsRemove.length) {
+    showToast('Keine Änderungen ausgewählt', '⚠');
+    return;
+  }
+
+  document.getElementById('batchApplyBtn').disabled = true;
+
+  const body = { ids: batchFileIds };
+  if (batchCategory)         body.category    = batchCategory;
+  if (batchTagsAdd.length)   body.tags_add    = batchTagsAdd;
+  if (batchTagsRemove.length) body.tags_remove = batchTagsRemove;
+
+  try {
+    const res  = await api('PUT', '/api/files/batch', body);
+    showToast(`${res.updated} Dateien aktualisiert`);
+    closeBatchEdit();
+    loadFiles();
+  } catch(e) {
+    showToast('Fehler beim Speichern', '✕');
+  } finally {
+    document.getElementById('batchApplyBtn').disabled = false;
+  }
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
