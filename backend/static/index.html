@@ -1438,9 +1438,10 @@
         <button class="btn btn-ghost" style="font-size:12px;color:var(--red)" onclick="deleteCurrentSet()" id="setBarDeleteBtn" data-i18n="set_btn_delete">✕ Set löschen</button>
       </div>
     </div>
-    <!-- BATCH EDIT button (shown whenever a folder is active) -->
-    <div id="batchBar" class="hidden" style="margin-bottom:6px">
+    <!-- FOLDER ACTION BUTTONS (shown whenever a folder is active) -->
+    <div id="batchBar" class="hidden" style="margin-bottom:6px;display:flex;gap:8px;align-items:center">
       <button class="btn btn-ghost" style="font-size:12px" onclick="openBatchEdit()">⊟ Batch bearbeiten</button>
+      <button class="btn btn-ghost" style="font-size:12px" id="moveUpBtn" onclick="moveFolderUp()" title="Ordner eine Ebene höher verschieben">⬆ Eine Ebene höher</button>
     </div>
     <!-- SAVE AS SET button (shown when folder is active but not yet a set) -->
     <div id="setCreateBar" class="hidden" style="margin-bottom:14px">
@@ -3047,6 +3048,35 @@ function errorHTML() {
     <div class="empty-title">${t('error_title')}</div>
     <div class="empty-sub">${t('error_sub')}</div>
   </div>`;
+}
+
+// ─── MOVE FOLDER UP ───────────────────────────────────────────────────────────
+async function moveFolderUp() {
+  if (!activeFolder) return;
+
+  // Button deaktivieren solange die Aktion läuft
+  const btn = document.getElementById('moveUpBtn');
+  btn.disabled = true;
+
+  try {
+    const result = await api('POST', '/api/folders/move-up', { folder: activeFolder });
+    showToast(`Ordner verschoben nach: ${result.new_folder}`);
+    // Ordner-Ansicht auf neuen Pfad umschalten
+    activeFolder = result.new_folder;
+    await loadFolders();
+    loadFiles();
+  } catch(e) {
+    const detail = e.message || '';
+    if (detail.includes('top level')) {
+      showToast('Ordner ist bereits auf oberster Ebene', '⚠');
+    } else if (detail.includes('409') || detail.includes('existiert')) {
+      showToast('Zielordner existiert bereits', '⚠');
+    } else {
+      showToast(`Fehler: ${detail}`, '✕');
+    }
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ─── BATCH EDIT ───────────────────────────────────────────────────────────────
