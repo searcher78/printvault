@@ -3112,6 +3112,12 @@ function renderDuplicatesView(groups) {
     </div>`;
     return;
   }
+  const totalExtra = groups.reduce((s, g) => s + g.count - 1, 0);
+  view.innerHTML = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+    <span style="color:var(--text-dim);font-size:13px">${groups.length} Gruppen · ${totalExtra} überflüssige Kopien</span>
+    <button class="btn btn-ghost" style="margin-left:auto;color:var(--red);border-color:var(--red);font-size:13px"
+            onclick="cleanAllDuplicates()">🗑 Alle bereinigen (je erste behalten)</button>
+  </div>` + groups.map((g, gi) => `
   view.innerHTML = groups.map((g, gi) => `
     <div class="dup-group" id="dupGroup${gi}">
       <div class="dup-group-header">
@@ -3151,6 +3157,34 @@ async function loadDuplicates() {
     console.error('loadDuplicates error:', e);
     view.innerHTML = errorHTML();
   }
+}
+
+async function cleanAllDuplicates() {
+  const groups = duplicateGroupsCache;
+  if (!groups?.length) return;
+  const totalExtra = groups.reduce((s, g) => s + g.count - 1, 0);
+  if (!confirm(`${totalExtra} Dateien löschen? In jeder Gruppe wird die erste Datei behalten.`)) return;
+
+  const btn = document.querySelector('[onclick="cleanAllDuplicates()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Läuft…'; }
+
+  let deleted = 0, failed = 0;
+  for (const g of groups) {
+    for (const f of g.files.slice(1)) {
+      try { await api('DELETE', `/api/files/${f.id}`); deleted++; }
+      catch(e) { failed++; }
+    }
+  }
+
+  // Cache leeren → neu laden
+  duplicateGroupsCache = null;
+  await loadDuplicateCount();
+  if (duplicateGroupsCache?.length) {
+    renderDuplicatesView(duplicateGroupsCache);
+  } else {
+    setNav(document.querySelector('[data-nav="all"]'), 'all');
+  }
+  showToast(failed ? `${deleted} gelöscht, ${failed} Fehler` : `${deleted} Dateien gelöscht`);
 }
 
 async function keepOnly(groupIdx, keepIdx) {
