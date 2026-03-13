@@ -2093,6 +2093,8 @@ function hideSetBars() {
 async function loadFolderSetInfo(folder) {
   hideSetBars();
   document.getElementById('batchBar').classList.remove('hidden');
+  // "Eine Ebene höher" nur anzeigen wenn Ordner nicht bereits auf oberster Ebene
+  document.getElementById('moveUpBtn').style.display = folder.includes('/') ? '' : 'none';
   try {
     const s = await api('GET', `/api/sets/by-folder?folder=${encodeURIComponent(folder)}`);
     currentSetId = s.id;
