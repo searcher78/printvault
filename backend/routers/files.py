@@ -191,6 +191,32 @@ def batch_update_files(update: BatchUpdate, session: Session = Depends(get_sessi
     return {"updated": updated}
 
 
+@router.get("/files/duplicates")
+def get_duplicates(session: Session = Depends(get_session)):
+    """Gibt Gruppen von Dateien mit identischem file_hash zurück (Duplikate)."""
+    all_files = session.exec(select(PrintFile).where(PrintFile.file_hash != None)).all()
+
+    # Nach Hash gruppieren
+    groups: dict[str, list[PrintFile]] = {}
+    for f in all_files:
+        groups.setdefault(f.file_hash, []).append(f)
+
+    # Nur Gruppen mit mehr als einer Datei zurückgeben
+    result = []
+    for hash_val, files in groups.items():
+        if len(files) < 2:
+            continue
+        result.append({
+            "hash": hash_val,
+            "count": len(files),
+            "files": [PrintFileRead.from_db(f) for f in files],
+        })
+
+    # Größte Gruppen zuerst
+    result.sort(key=lambda g: g["count"], reverse=True)
+    return result
+
+
 @router.get("/files/{file_id}", response_model=PrintFileRead)
 def get_file(file_id: int, session: Session = Depends(get_session)):
     file = session.get(PrintFile, file_id)
@@ -247,32 +273,6 @@ def get_thumbnail(file_id: int, session: Session = Depends(get_session)):
     if not os.path.exists(file.thumbnail_path):
         raise HTTPException(status_code=404, detail="Thumbnail file not found")
     return FileResponse(file.thumbnail_path, media_type="image/png")
-
-
-@router.get("/files/duplicates")
-def get_duplicates(session: Session = Depends(get_session)):
-    """Gibt Gruppen von Dateien mit identischem file_hash zurück (Duplikate)."""
-    all_files = session.exec(select(PrintFile).where(PrintFile.file_hash != None)).all()
-
-    # Nach Hash gruppieren
-    groups: dict[str, list[PrintFile]] = {}
-    for f in all_files:
-        groups.setdefault(f.file_hash, []).append(f)
-
-    # Nur Gruppen mit mehr als einer Datei zurückgeben
-    result = []
-    for hash_val, files in groups.items():
-        if len(files) < 2:
-            continue
-        result.append({
-            "hash": hash_val,
-            "count": len(files),
-            "files": [PrintFileRead.from_db(f) for f in files],
-        })
-
-    # Größte Gruppen zuerst
-    result.sort(key=lambda g: g["count"], reverse=True)
-    return result
 
 
 @router.get("/stats")
