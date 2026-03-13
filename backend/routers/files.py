@@ -251,6 +251,32 @@ def update_file(
     return PrintFileRead.from_db(file)
 
 
+@router.delete("/files/{file_id}")
+def delete_file(file_id: int, session: Session = Depends(get_session)):
+    """Löscht eine Datei physisch vom Dateisystem sowie den DB-Eintrag und das Thumbnail."""
+    file = session.get(PrintFile, file_id)
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Physische Datei löschen (best-effort)
+    if file.path and os.path.exists(file.path):
+        try:
+            os.remove(file.path)
+        except OSError as e:
+            raise HTTPException(status_code=500, detail=f"Datei konnte nicht gelöscht werden: {e}")
+
+    # Thumbnail löschen (best-effort, kein Fehler wenn nicht vorhanden)
+    if file.thumbnail_path and os.path.exists(file.thumbnail_path):
+        try:
+            os.remove(file.thumbnail_path)
+        except OSError:
+            pass
+
+    session.delete(file)
+    session.commit()
+    return {"deleted": file_id}
+
+
 @router.get("/files/{file_id}/download")
 def download_file(file_id: int, session: Session = Depends(get_session)):
     file = session.get(PrintFile, file_id)

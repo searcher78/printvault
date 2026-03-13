@@ -3102,42 +3102,78 @@ function errorHTML() {
 }
 
 // ─── DUPLICATES ───────────────────────────────────────────────────────────────
+function renderDuplicatesView(groups) {
+  const view = document.getElementById('duplicatesView');
+  if (!groups.length) {
+    view.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">⊕</div>
+      <div class="empty-title">Keine Duplikate gefunden</div>
+      <div class="empty-sub">Alle Dateien haben einen eindeutigen Inhalt.</div>
+    </div>`;
+    return;
+  }
+  view.innerHTML = groups.map((g, gi) => `
+    <div class="dup-group" id="dupGroup${gi}">
+      <div class="dup-group-header">
+        <span class="dup-badge">⊕ ${g.count}× identisch</span>
+        <span>Hash: ${(g.hash || '').slice(0,12)}…</span>
+        <span>${fmtBytes((g.files[0] || {}).size_bytes || 0)}</span>
+      </div>
+      ${(g.files || []).map((f, fi) => `
+        <div class="dup-file-row" id="dupRow${gi}_${fi}">
+          ${f.thumbnail_path
+            ? `<img class="dup-thumb" src="/api/thumbnails/${f.id}" onerror="this.style.display='none'">`
+            : `<div class="dup-thumb-placeholder">◈</div>`}
+          <div class="dup-file-info">
+            <div class="dup-file-name">${esc(f.name || '')}${f.format ? '.' + f.format.toLowerCase() : ''}</div>
+            <div class="dup-file-path">${esc(f.path || '')}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-ghost" style="font-size:12px" onclick="openModal(${f.id})">Details</button>
+            <button class="btn btn-ghost" style="font-size:12px;color:var(--red);border-color:var(--red)"
+                    onclick="deleteDuplicate(${f.id}, ${gi}, ${fi})">🗑 Löschen</button>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
 async function loadDuplicates() {
   const view = document.getElementById('duplicatesView');
   view.innerHTML = loadingHTML();
   try {
     const groups = duplicateGroupsCache ?? await api('GET', '/api/files/duplicates');
-    if (!groups.length) {
-      view.innerHTML = `<div class="empty-state">
-        <div class="empty-icon">⊕</div>
-        <div class="empty-title">Keine Duplikate gefunden</div>
-        <div class="empty-sub">Alle Dateien haben einen eindeutigen Inhalt.</div>
-      </div>`;
-      return;
-    }
-
-    view.innerHTML = groups.map(g => `
-      <div class="dup-group">
-        <div class="dup-group-header">
-          <span class="dup-badge">⊕ ${g.count}× identisch</span>
-          <span>Hash: ${(g.hash || '').slice(0,12)}…</span>
-          <span>${fmtBytes((g.files[0] || {}).size_bytes || 0)}</span>
-        </div>
-        ${(g.files || []).map(f => `
-          <div class="dup-file-row">
-            ${f.thumbnail_path
-              ? `<img class="dup-thumb" src="/api/thumbnails/${f.id}" onerror="this.style.display='none'">`
-              : `<div class="dup-thumb-placeholder">◈</div>`}
-            <div class="dup-file-info">
-              <div class="dup-file-name">${esc(f.name || '')}${f.format ? '.' + f.format.toLowerCase() : ''}</div>
-              <div class="dup-file-path">${esc(f.path || '')}</div>
-            </div>
-            <button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="openModal(${f.id})">Details</button>
-          </div>`).join('')}
-      </div>`).join('');
+    renderDuplicatesView(groups);
   } catch(e) {
     console.error('loadDuplicates error:', e);
     view.innerHTML = errorHTML();
+  }
+}
+
+async function deleteDuplicate(fileId, groupIdx, fileIdx) {
+  if (!confirm('Datei wirklich dauerhaft löschen?')) return;
+  try {
+    await api('DELETE', `/api/files/${fileId}`);
+    // Aus Cache entfernen
+    if (duplicateGroupsCache) {
+      duplicateGroupsCache[groupIdx].files.splice(fileIdx, 1);
+      duplicateGroupsCache[groupIdx].count--;
+      // Gruppe entfernen wenn nur noch eine Datei übrig
+      if (duplicateGroupsCache[groupIdx].files.length < 2) {
+        duplicateGroupsCache.splice(groupIdx, 1);
+      }
+      // Nav-Zähler aktualisieren
+      const total = duplicateGroupsCache.reduce((s, g) => s + g.count, 0);
+      if (total > 0) {
+        document.getElementById('cnt-duplicates').textContent = total;
+      } else {
+        document.getElementById('navDuplicates').style.display = 'none';
+        setNav(document.querySelector('[data-nav="all"]'), 'all');
+      }
+      renderDuplicatesView(duplicateGroupsCache);
+    }
+    showToast('Datei gelöscht');
+  } catch(e) {
+    showToast('Fehler beim Löschen: ' + e.message, '✕');
   }
 }
 
