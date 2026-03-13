@@ -3118,7 +3118,6 @@ function renderDuplicatesView(groups) {
     <button class="btn btn-ghost" style="margin-left:auto;color:var(--red);border-color:var(--red);font-size:13px"
             onclick="cleanAllDuplicates()">🗑 Alle bereinigen (je älteste behalten)</button>
   </div>` + groups.map((g, gi) => `
-  view.innerHTML = groups.map((g, gi) => `
     <div class="dup-group" id="dupGroup${gi}">
       <div class="dup-group-header">
         <span class="dup-badge">⊕ ${g.count}× identisch</span>
