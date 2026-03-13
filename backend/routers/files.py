@@ -115,7 +115,7 @@ def list_files(
     missing: Optional[bool] = None,
     sort: str = "date",
     order: str = "desc",
-    limit: int = Query(default=50, le=200),
+    limit: int = Query(default=50, le=10000),
     offset: int = 0,
     session: Session = Depends(get_session),
 ):

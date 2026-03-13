@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PrintVault — 3D File Manager</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <script type="importmap">
 {
@@ -1437,10 +1438,13 @@
         <button class="btn btn-ghost" style="font-size:12px;color:var(--red)" onclick="deleteCurrentSet()" id="setBarDeleteBtn" data-i18n="set_btn_delete">✕ Set löschen</button>
       </div>
     </div>
-    <!-- SAVE AS SET button (shown when folder is active but not yet a set) -->
-    <div id="setCreateBar" class="hidden" style="margin-bottom:14px;display:flex;gap:8px;align-items:center">
-      <button class="btn btn-ghost" style="font-size:12px" onclick="openSetEditor()" data-i18n="btn_save_as_set">◈ Als Set speichern</button>
+    <!-- BATCH EDIT button (shown whenever a folder is active) -->
+    <div id="batchBar" class="hidden" style="margin-bottom:6px">
       <button class="btn btn-ghost" style="font-size:12px" onclick="openBatchEdit()">⊟ Batch bearbeiten</button>
+    </div>
+    <!-- SAVE AS SET button (shown when folder is active but not yet a set) -->
+    <div id="setCreateBar" class="hidden" style="margin-bottom:14px">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="openSetEditor()" data-i18n="btn_save_as_set">◈ Als Set speichern</button>
     </div>
 
     <!-- SETS OVERVIEW -->
@@ -2081,11 +2085,13 @@ function filterByFolder(folder) {
 function hideSetBars() {
   document.getElementById('setBar').classList.add('hidden');
   document.getElementById('setCreateBar').classList.add('hidden');
+  document.getElementById('batchBar').classList.add('hidden');
   currentSetId = null;
 }
 
 async function loadFolderSetInfo(folder) {
   hideSetBars();
+  document.getElementById('batchBar').classList.remove('hidden');
   try {
     const s = await api('GET', `/api/sets/by-folder?folder=${encodeURIComponent(folder)}`);
     currentSetId = s.id;
