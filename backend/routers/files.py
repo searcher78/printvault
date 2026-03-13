@@ -202,14 +202,16 @@ def get_duplicates(session: Session = Depends(get_session)):
         groups.setdefault(f.file_hash, []).append(f)
 
     # Nur Gruppen mit mehr als einer Datei zurückgeben
+    # Innerhalb jeder Gruppe: älteste Datei (zuerst importiert) zuerst
     result = []
     for hash_val, files in groups.items():
         if len(files) < 2:
             continue
+        files_sorted = sorted(files, key=lambda f: f.date_added)
         result.append({
             "hash": hash_val,
-            "count": len(files),
-            "files": [PrintFileRead.from_db(f) for f in files],
+            "count": len(files_sorted),
+            "files": [PrintFileRead.from_db(f) for f in files_sorted],
         })
 
     # Größte Gruppen zuerst
