@@ -976,18 +976,25 @@
     color: var(--text-dim);
     margin-right: 3px;
   }
+  .viewer3d-hint-mobile { display: none; }
+  @media (max-width: 768px) {
+    .viewer3d-hint-desktop { display: none; }
+    .viewer3d-hint-mobile  { display: inline-flex; align-items: center; }
+    .viewer3d-hints { gap: 8px; }
+    .viewer3d-bar { padding: 8px 12px; }
+  }
 
   .viewer3d-close-btn {
     flex-shrink: 0;
     margin-left: 16px;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     background: var(--surface2);
     border: 1px solid var(--border);
     color: var(--text-dim);
-    font-size: 15px;
+    font-size: 18px;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1670,10 +1677,12 @@
   <div class="viewer3d-bar">
     <span class="viewer3d-title" id="viewer3dTitle"></span>
     <div class="viewer3d-hints">
-      <span><span class="viewer3d-hint-key">Drag</span><span data-i18n="viewer_rotate">Drehen</span></span>
-      <span><span class="viewer3d-hint-key">Scroll</span><span data-i18n="viewer_zoom">Zoom</span></span>
-      <span><span class="viewer3d-hint-key">Rechtsklick</span><span data-i18n="viewer_pan">Verschieben</span></span>
-      <span><span class="viewer3d-hint-key">Esc</span><span data-i18n="viewer_close">Schließen</span></span>
+      <span class="viewer3d-hint-desktop"><span class="viewer3d-hint-key">Drag</span><span data-i18n="viewer_rotate">Drehen</span></span>
+      <span class="viewer3d-hint-desktop"><span class="viewer3d-hint-key">Scroll</span><span data-i18n="viewer_zoom">Zoom</span></span>
+      <span class="viewer3d-hint-desktop"><span class="viewer3d-hint-key">Rechtsklick</span><span data-i18n="viewer_pan">Verschieben</span></span>
+      <span class="viewer3d-hint-mobile"><span class="viewer3d-hint-key">1 Finger</span><span>Drehen</span></span>
+      <span class="viewer3d-hint-mobile"><span class="viewer3d-hint-key">Pinch</span><span>Zoom</span></span>
+      <span class="viewer3d-hint-mobile"><span class="viewer3d-hint-key">2 Finger</span><span>Verschieben</span></span>
       <button class="viewer3d-close-btn" onclick="close3DViewer()">✕</button>
     </div>
   </div>
